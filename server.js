@@ -80,13 +80,6 @@ async function api(q,r,p){
   if(q.method==='POST'&&p==='/api/admin/results'){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});const b=await body(q);if(!b.eventId||!b.division||!b.athlete)return send(r,400,{error:'Event, division and athlete required'});const result={id:id('res'),eventId:b.eventId,division:b.division,athlete:b.athlete,place:Number(b.place||0),createdAt:new Date().toISOString()};d.results.push(result);write(d);return send(r,201,{result})
   }
-  if(q.method==='GET'&&p==='/api/public/competitors'){
-   const rows=d.registrations.filter(x=>x.status!=='cancelled').map(x=>{const u=d.users.find(z=>z.id===x.userId);return u?{name:u.name,division:x.division,eventId:x.eventId}:null}).filter(Boolean);
-   return send(r,200,{competitors:rows});
-  }
-  if(q.method==='GET'&&p==='/api/public/results'){
-   return send(r,200,{results:d.results});
-  }
   if(q.method==='GET'&&p.startsWith('/api/public/')){
    const bits=p.split('/');const eid=bits[3],type=bits[4];if(type==='roster')return send(r,200,{registrations:d.registrations.filter(x=>x.eventId===eid&&x.status!=='cancelled')});if(type==='results')return send(r,200,{results:d.results.filter(x=>x.eventId===eid)});
   }

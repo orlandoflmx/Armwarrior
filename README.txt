@@ -1,25 +1,29 @@
-FLORIDA ARMWRESTLING — V15 LAUNCH PACKAGE
+FLORIDA ARMWRESTLING — LAUNCH BUILD
 
-This build is prepared for the live Armwarrior.com site.
+This package is the launch-ready website build for Armwarrior.com.
 
-Official 2026 schedule:
-- October 17, 2026 — Garage Grinder Classic 2 — Eclipse Tattoo, Davenport, FL — $40 per hand
-- November 14, 2026 — Lucky U Cycles Motorcycle Pull — Fort Myers, FL — $40 per class — starts 12:00 PM
-- December 5, 2026 — Florida State Championship — Mudville Grill, Jacksonville, FL — $40 per hand — doors 11:00 AM, pulls 12:00 PM
+2026 official events included:
+- Oct 17 — Garage Grinder Classic 2 — Eclipse Tattoo, Davenport — $40 per hand
+- Nov 14 — Lucky U Cycles Motorcycle Pull — Fort Myers — $40 per class
+- Dec 5 — Florida State Championship — Mudville Grill, Jacksonville — $40 per hand
 
-The public site uses the official event flyers supplied for these events.
-Demo competitor names, demo results, and point/ranking data have been removed from the public-facing site.
-Competitors and results now populate from the live FAA server as real data is entered.
+Included:
+- Public event schedule and event detail pages
+- Official event flyers
+- Athlete account registration and server-side registrations
+- Clean public results/competitor empty states until real data is published
+- Expanded FAA admin control center
+- Event editing and registration status controls
+- Results entry
+- PWA/offline shell
 
-Admin dashboard improvements:
-- Dashboard event/athlete/registration/result counts
-- Upcoming event overview
-- Event creation and editing
-- Registration search, check-in and cancellation
-- Athlete search
-- Results entry and results list
+Payments are intentionally deferred until the final launch stage, as requested.
 
-Payments remain intentionally deferred for the final launch stage.
+Hosting:
+- Node.js 18+
+- Start command: node server.js
+- Render can use npm install as the build command
+- The server listens on the Render PORT and 0.0.0.0
 
-Run locally:
-  npm start
+
+V16 update: added a prominent FAA member account area with full-name account creation and sign-in. Auth token storage is unified for registration/admin access.

@@ -1,34 +1,25 @@
-FLORIDA ARMWRESTLING V13 — ADMIN PLATFORM
+FLORIDA ARMWRESTLING — V15 LAUNCH PACKAGE
 
-V13 expands the league operating system before payments.
+This build is prepared for the live Armwarrior.com site.
 
-Includes:
-- Dedicated admin dashboard
-- Admin sign-in / role separation
-- Event creation and division management
-- Registration roster
-- Athlete list
-- Check-in and cancellation
-- Results entry
-- Dashboard counts
-- Public roster/results API endpoints
+Official 2026 schedule:
+- October 17, 2026 — Garage Grinder Classic 2 — Eclipse Tattoo, Davenport, FL — $40 per hand
+- November 14, 2026 — Lucky U Cycles Motorcycle Pull — Fort Myers, FL — $40 per class — starts 12:00 PM
+- December 5, 2026 — Florida State Championship — Mudville Grill, Jacksonville, FL — $40 per hand — doors 11:00 AM, pulls 12:00 PM
 
-Run:
-1. Install Node.js 18+
-2. npm start
-3. Open http://localhost:8080
-4. Admin: http://localhost:8080/admin.html
+The public site uses the official event flyers supplied for these events.
+Demo competitor names, demo results, and point/ranking data have been removed from the public-facing site.
+Competitors and results now populate from the live FAA server as real data is entered.
 
-Local admin testing:
-Create an account, then edit its role in data/faa.json from "athlete" to "admin".
+Admin dashboard improvements:
+- Dashboard event/athlete/registration/result counts
+- Upcoming event overview
+- Event creation and editing
+- Registration search, check-in and cancellation
+- Athlete search
+- Results entry and results list
 
-PAYMENTS ARE INTENTIONALLY NOT BUILT YET.
+Payments remain intentionally deferred for the final launch stage.
 
-Next priority:
-- Bracket engine / tournament-day workflow
-- Athlete records and event history
-- Photos/media management
-- Public results/brackets
-- Production database
-- Hosting/domain/HTTPS
-- Stripe LAST
+Run locally:
+  npm start

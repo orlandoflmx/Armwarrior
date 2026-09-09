@@ -1,0 +1,10 @@
+{
+  "name": "FLORIDA ARMWRESTLING",
+  "short_name": "FL Armwrestling",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#e51018",
+  "description": "Official Florida Armwrestling Association event, registration, competitor, results and bracket app.",
+  "icons": []
+}

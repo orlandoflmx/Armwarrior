@@ -41,7 +41,7 @@ V27 fixes: Admin login now bootstraps the configured ADMIN_EMAIL account on firs
 V28 AUTH FIX: Admin authentication now uses a signed stateless session token (with database-session compatibility), so Render multi-instance/restart behavior does not drop the admin session. The admin login also clears stale browser tokens before attempting a fresh login. Facebook uses the provided FAA link and renders as a full-width social button.
 
 
-V29 ADMIN LOGIN FIX
+V33 ADMIN LOGIN FIX
 Default admin password: FAAadmin2026!
 The password can be overridden in Render with ADMIN_PASSWORD.
 ADMIN_EMAIL remains the admin email.

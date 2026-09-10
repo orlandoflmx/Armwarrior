@@ -44,7 +44,36 @@ function renderChampions(){
    return `<div class="champ-admin-card"><div class="muted">${esc(w)}</div><h2>${side==='right'?'RIGHT HAND':'LEFT HAND'}</h2>${c?.photo?`<img class="champ-admin-photo" src="${c.photo}" alt="${esc(c.name||'Champion photo')}">`:'<div class="champ-admin-empty">UPLOAD OFFICIAL<br>CHAMPION PHOTO</div>'}<label>Champion Name</label><input id="name-${key}" value="${esc(c?.name||'')}" placeholder="Champion name"><label class="file-label">Official Champion Photo</label><input id="file-${key}" type="file" accept="image/jpeg,image/png,image/webp" onchange="previewChampion('${key}',this)"><div id="preview-${key}" class="small" style="margin-top:7px"></div><div class="actions"><button class="btn primary" onclick="saveChampion('${esc(w)}','${side}','${key}')">SAVE</button>${c?`<button class="btn" onclick="removeChampion('${c.id}')">CLEAR</button>`:''}</div></div>`;
  })).join('')+'</div>';
 }
-function resizeImage(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onerror=reject;r.onload=()=>{const im=new Image();im.onload=()=>{let max=900,quality=.72;const make=()=>{const scale=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*scale));c.height=Math.max(1,Math.round(im.height*scale));c.getContext('2d').drawImage(im,0,0,c.width,c.height);const out=c.toDataURL('image/jpeg',quality);if(out.length>1100000&&max>500){max=Math.max(500,Math.round(max*.82));quality=Math.max(.55,quality-.05);setTimeout(make,0);return}resolve(out)};im.onerror=reject;im.src=r.result};r.readAsDataURL(file)})}
+function resizeImage(file){
+ return new Promise((resolve,reject)=>{
+  const r=new FileReader();
+  r.onerror=reject;
+  r.onload=()=>{
+   const im=new Image();
+   im.onload=()=>{
+    let max=900,quality=.72;
+    const make=()=>{
+     const scale=Math.min(1,max/Math.max(im.width,im.height));
+     const c=document.createElement('canvas');
+     c.width=Math.max(1,Math.round(im.width*scale));
+     c.height=Math.max(1,Math.round(im.height*scale));
+     c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+     const out=c.toDataURL('image/jpeg',quality);
+     if(out.length>1100000&&max>500){
+      max=Math.max(500,Math.round(max*.82));
+      quality=Math.max(.55,quality-.05);
+      setTimeout(make,0);
+      return;
+     }
+     resolve(out);
+    };
+    im.onerror=reject;
+    im.src=r.result;
+   };
+   r.readAsDataURL(file);
+  };
+ });
+}
 async function previewChampion(key,input){const f=input.files?.[0],box=$('preview-'+key);if(!f)return;box.textContent='Preparing photo…';try{input.dataset.image=await resizeImage(f);box.innerHTML='<img src="'+input.dataset.image+'" style="max-width:100%;max-height:150px;border-radius:8px" alt="Preview">'}catch{box.textContent='Could not read that image.'}}
 async function saveChampion(weight,side,key){const name=$('name-'+key).value.trim(),input=$('file-'+key),photo=input?.dataset.image||'';if(!name){alert('Enter the champion name.');return}const btn=document.querySelector(`button[onclick=\"saveChampion('${weight}','${side}','${key}')\"]`);if(btn){btn.disabled=true;btn.textContent='SAVING…'}try{await api('/api/admin/champions',{method:'POST',body:JSON.stringify({weight,side,name,photo})});await load()}catch(e){alert(e.message)}finally{if(btn){btn.disabled=false;btn.textContent='SAVE'}}}
 async function removeChampion(id){if(!confirm('Clear this champion slot?'))return;try{await api('/api/admin/champions/'+id,{method:'DELETE'});await load()}catch(e){alert(e.message)}}

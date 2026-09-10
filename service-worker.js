@@ -1,4 +1,4 @@
-const CACHE='faa-v15';
+const CACHE='faa-v19';
 const SHELL=['./','./index.html','./manifest.webmanifest','./flyer-garage-grinder.jpg','./flyer-lucky-u.jpg','./flyer-state-championship.jpg'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL))));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));

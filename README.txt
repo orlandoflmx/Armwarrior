@@ -27,3 +27,6 @@ Hosting:
 
 
 V16 update: added a prominent FAA member account area with full-name account creation and sign-in. Auth token storage is unified for registration/admin access.
+
+
+V19 cache fix: service-worker cache was bumped so updated account code replaces stale mobile-browser cached code.

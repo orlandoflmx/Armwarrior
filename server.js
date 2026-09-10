@@ -172,7 +172,7 @@ async function api(q,r,p){
    const b=await body(q);
    const name=String(b.name||'').trim(),date=String(b.date||'').trim();
    if(!name||!date)return send(r,400,{error:'Event name and date are required.'});
-   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date))return send(r,400,{error:'Please choose a valid event date.'});
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return send(r,400,{error:'Please choose a valid event date.'});
    const flyer=String(b.flyer||'');
    if(flyer && (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(flyer)||flyer.length>1200000))return send(r,400,{error:'Please upload an event flyer under 1 MB.'});
    const e={id:id('evt'),flyer,name,date,location:String(b.location||'Florida').trim(),address:String(b.address||'').trim(),status:b.status==='closed'?'closed':'open',entryFee:Number.isFinite(Number(b.entryFee))?Number(b.entryFee):0,entryUnit:b.entryUnit==='per hand'?'per hand':'per class',startTime:String(b.startTime||'').trim(),doorsTime:String(b.doorsTime||'').trim(),divisions:Array.isArray(b.divisions)&&b.divisions.length?b.divisions:['154 lbs','176 lbs','198 lbs','220 lbs','242 lbs','243+ lbs'],categories:Array.isArray(b.categories)&&b.categories.length?b.categories:COMMON.categories,weightClasses:Array.isArray(b.weightClasses)&&b.weightClasses.length?b.weightClasses:COMMON.weightClasses,prizes:Array.isArray(b.prizes)?b.prizes:[],description:String(b.description||'').trim(),createdAt:new Date().toISOString()};

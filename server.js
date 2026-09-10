@@ -13,12 +13,12 @@ const SEEDED_EVENTS=[
  {id:'evt_florida_state_2026',name:'Florida State Championship',date:'2026-12-05',location:'Mudville Grill, Jacksonville, FL',address:'3105 Beach Blvd, Jacksonville, FL 32207',status:'open',entryFee:40,entryUnit:'per hand',startTime:'12:00 PM',doorsTime:'11:00 AM',divisions:COMMON.weightClasses, categories:COMMON.categories, weightClasses:COMMON.weightClasses, prizes:['1st Place','2nd Place','3rd Place'],description:'FAA sanctioned Florida State Championship. Trophies and bragging rights.'}
 ];
 
-function freshDb(){return{events:SEEDED_EVENTS,users:[],registrations:[],results:[],sessions:[],athleteProfiles:[],champions:[]}}
+function freshDb(){return{events:SEEDED_EVENTS,users:[],registrations:[],results:[],sessions:[],athleteProfiles:[],champions:[],photos:[]}}
 if(!fs.existsSync(DB))fs.writeFileSync(DB,JSON.stringify(freshDb(),null,2));
 const read=()=>JSON.parse(fs.readFileSync(DB,'utf8'));
 const write=d=>fs.writeFileSync(DB,JSON.stringify(d,null,2));
 function migrate(d){
- d.events=Array.isArray(d.events)?d.events:[];d.users=Array.isArray(d.users)?d.users:[];d.registrations=Array.isArray(d.registrations)?d.registrations:[];d.results=Array.isArray(d.results)?d.results:[];d.sessions=Array.isArray(d.sessions)?d.sessions:[];d.athleteProfiles=Array.isArray(d.athleteProfiles)?d.athleteProfiles:[];d.champions=Array.isArray(d.champions)?d.champions:[];
+ d.events=Array.isArray(d.events)?d.events:[];d.users=Array.isArray(d.users)?d.users:[];d.registrations=Array.isArray(d.registrations)?d.registrations:[];d.results=Array.isArray(d.results)?d.results:[];d.sessions=Array.isArray(d.sessions)?d.sessions:[];d.athleteProfiles=Array.isArray(d.athleteProfiles)?d.athleteProfiles:[];d.champions=Array.isArray(d.champions)?d.champions:[];d.photos=Array.isArray(d.photos)?d.photos:[];
  for(const seed of SEEDED_EVENTS){
   const old=d.events.find(e=>e.id===seed.id);
   if(!old)d.events.push(seed);
@@ -73,7 +73,7 @@ async function api(q,r,p){
   if(q.method==='GET'&&p==='/api/registrations'){const u=current(q,d);if(!u)return send(r,401,{error:'Sign in first'});return send(r,200,{registrations:d.registrations.filter(x=>x.userId===u.id)})}
   if(q.method==='GET'&&p==='/api/admin/dashboard'){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});
-   return send(r,200,{events:d.events.sort((a,b)=>a.date.localeCompare(b.date)),registrations:d.registrations,users:d.users.map(u=>({id:u.id,name:u.name,email:u.email,role:u.role})),results:d.results,athleteProfiles:d.athleteProfiles,champions:d.champions});
+   return send(r,200,{events:d.events.sort((a,b)=>a.date.localeCompare(b.date)),registrations:d.registrations,users:d.users.map(u=>({id:u.id,name:u.name,email:u.email,role:u.role})),results:d.results,athleteProfiles:d.athleteProfiles,champions:d.champions,photos:d.photos});
   }
   if(q.method==='POST'&&p==='/api/auth/register'){
    const b=await body(q),email=String(b.email||'').trim().toLowerCase();if(!b.name||!email||!b.password||b.password.length<8)return send(r,400,{error:'Name, email and an 8+ character password are required'});
@@ -98,6 +98,7 @@ async function api(q,r,p){
   if(q.method==='POST'&&p==='/api/auth/logout'){const m=(q.headers.authorization||'').match(/^Bearer (.+)$/);d.sessions=d.sessions.filter(s=>!m||s.token!==m[1]);write(d);return send(r,200,{ok:true})}
   if(q.method==='GET'&&p==='/api/public/champions')return send(r,200,{champions:d.champions,weights:COMMON.weightClasses});
   if(q.method==='GET'&&p==='/api/public/results')return send(r,200,{results:d.results});
+  if(q.method==='GET'&&p==='/api/public/photos')return send(r,200,{photos:d.photos});
   if(q.method==='POST'&&p==='/api/admin/champions'){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});
    const b=await body(q),weight=String(b.weight||''),side=String(b.side||'').toLowerCase(),name=String(b.name||'').trim(),photo=String(b.photo||'');
@@ -109,6 +110,15 @@ async function api(q,r,p){
   }
   if(q.method==='DELETE'&&p.startsWith('/api/admin/champions/')){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});const cid=p.split('/').pop();d.champions=d.champions.filter(x=>x.id!==cid);write(d);return send(r,200,{ok:true});
+  }
+  if(q.method==='POST'&&p==='/api/admin/photos'){
+   if(!admin(q,d))return send(r,403,{error:'Admin access required'});const b=await body(q),title=String(b.title||'').trim(),caption=String(b.caption||'').trim(),photo=String(b.photo||'');
+   if(!title||!photo)return send(r,400,{error:'Photo title and image are required'});
+   if(!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(photo)||photo.length>1200000)return send(r,400,{error:'Please upload a JPG, PNG or WebP image under 1 MB.'});
+   const item={id:id('photo'),title,caption,photo,createdAt:new Date().toISOString()};d.photos.unshift(item);write(d);return send(r,201,{photo:item});
+  }
+  if(q.method==='DELETE'&&p.startsWith('/api/admin/photos/')){
+   if(!admin(q,d))return send(r,403,{error:'Admin access required'});const pid=p.split('/').pop();d.photos=d.photos.filter(x=>x.id!==pid);write(d);return send(r,200,{ok:true});
   }
   if(q.method==='GET'&&p==='/api/square/config'){
    const applicationId=String(process.env.SQUARE_APPLICATION_ID||'').trim();
@@ -155,11 +165,12 @@ async function api(q,r,p){
   }
   if(q.method==='POST'&&p==='/api/admin/events'){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});const b=await body(q);if(!b.name||!b.date)return send(r,400,{error:'Event name and date required'});
-   const e={id:id('evt'),name:b.name,date:b.date,location:b.location||'Florida',address:b.address||'',status:b.status||'open',entryFee:Number(b.entryFee||0),entryUnit:b.entryUnit||'per class',startTime:b.startTime||'',doorsTime:b.doorsTime||'',divisions:Array.isArray(b.divisions)&&b.divisions.length?b.divisions:['154 lbs','176 lbs','198 lbs','220 lbs','242 lbs','243+ lbs'],categories:Array.isArray(b.categories)&&b.categories.length?b.categories:COMMON.categories,weightClasses:Array.isArray(b.weightClasses)&&b.weightClasses.length?b.weightClasses:COMMON.weightClasses,prizes:Array.isArray(b.prizes)?b.prizes:[],description:b.description||''};
+   const flyer=String(b.flyer||'');if(flyer && (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(flyer)||flyer.length>1200000))return send(r,400,{error:'Please upload an event flyer under 1 MB.'});
+   const e={id:id('evt'),flyer,name:b.name,date:b.date,location:b.location||'Florida',address:b.address||'',status:b.status||'open',entryFee:Number(b.entryFee||0),entryUnit:b.entryUnit||'per class',startTime:b.startTime||'',doorsTime:b.doorsTime||'',divisions:Array.isArray(b.divisions)&&b.divisions.length?b.divisions:['154 lbs','176 lbs','198 lbs','220 lbs','242 lbs','243+ lbs'],categories:Array.isArray(b.categories)&&b.categories.length?b.categories:COMMON.categories,weightClasses:Array.isArray(b.weightClasses)&&b.weightClasses.length?b.weightClasses:COMMON.weightClasses,prizes:Array.isArray(b.prizes)?b.prizes:[],description:b.description||''};
    d.events.push(e);write(d);return send(r,201,{event:e})
   }
   if(q.method==='PATCH'&&p.startsWith('/api/admin/events/')){
-   if(!admin(q,d))return send(r,403,{error:'Admin access required'});const eid=p.split('/').pop(),e=d.events.find(x=>x.id===eid);if(!e)return send(r,404,{error:'Event not found'});const b=await body(q);for(const k of ['name','date','location','address','status','entryUnit','startTime','doorsTime','description'])if(b[k]!==undefined)e[k]=b[k];if(b.entryFee!==undefined)e.entryFee=Number(b.entryFee);for(const k of ['divisions','categories','weightClasses','prizes'])if(Array.isArray(b[k]))e[k]=b[k];write(d);return send(r,200,{event:e})
+   if(!admin(q,d))return send(r,403,{error:'Admin access required'});const eid=p.split('/').pop(),e=d.events.find(x=>x.id===eid);if(!e)return send(r,404,{error:'Event not found'});const b=await body(q);for(const k of ['name','date','location','address','status','entryUnit','startTime','doorsTime','description'])if(b[k]!==undefined)e[k]=b[k];if(b.entryFee!==undefined)e.entryFee=Number(b.entryFee);for(const k of ['divisions','categories','weightClasses','prizes'])if(Array.isArray(b[k]))e[k]=b[k];if(b.flyer!==undefined){const flyer=String(b.flyer||'');if(flyer && (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(flyer)||flyer.length>1200000))return send(r,400,{error:'Please upload an event flyer under 1 MB.'});e.flyer=flyer}write(d);return send(r,200,{event:e})
   }
   if(q.method==='POST'&&p==='/api/admin/results'){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});const b=await body(q);if(!b.eventId||!b.division||!b.athlete)return send(r,400,{error:'Event, division and athlete required'});const result={id:id('res'),eventId:b.eventId,division:b.division,athlete:b.athlete,place:Number(b.place||0),createdAt:new Date().toISOString()};d.results.push(result);write(d);return send(r,201,{result})

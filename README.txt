@@ -55,3 +55,21 @@ V45 PAYMENT / PRIVACY
 - Square Web Payments SDK card element is prepared.
 - Optional Render environment variables: SQUARE_APPLICATION_ID, SQUARE_LOCATION_ID, SQUARE_ACCESS_TOKEN, SQUARE_ENVIRONMENT=sandbox|production.
 - Square access token is server-only and must never be placed in public HTML.
+
+V54 PERSISTENT DATA / CONTENT
+- Application data is no longer tied to the deployed ZIP directory when a Render persistent disk is available.
+- The server uses ARM_WARRIOR_DATA_DIR first, then RENDER_DISK_PATH, then /var/data/armwarrior when /var/data exists.
+- On first boot with an empty persistent location, the current bundled data/faa.json is copied once as the starting database.
+- After that first copy, the persistent database is the source of truth. New ZIP deployments do not overwrite events, registrations, champions, photos, users, results, or other saved content.
+- Champion photos and Admin Photos are stored in the persistent database and remain available after code updates.
+- Events created in Admin remain available after code updates and continue to feed the public Events/Schedule and registration event selector.
+- Registrations remain Admin-managed and persist across code updates.
+
+RENDER PERSISTENT DISK SETUP (ONE-TIME)
+1. Open the Armwarrior web service in Render.
+2. Add a Persistent Disk to the service.
+3. Use mount path: /var/data
+4. Redeploy using this package.
+5. The first deployment with the disk copies the existing bundled data once if the persistent database is empty. After that, future ZIP deployments leave the persistent data alone.
+
+IMPORTANT: A ZIP file by itself cannot make a hosting provider's local filesystem permanent. The Render Persistent Disk is what makes the saved events, champions, photos, registrations, and other admin changes survive future deployments/redeploys.

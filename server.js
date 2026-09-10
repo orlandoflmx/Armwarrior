@@ -1,6 +1,17 @@
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto'),url=require('url');
-const PORT=process.env.PORT||8080,ROOT=__dirname,DATA=path.join(ROOT,'data'),DB=path.join(DATA,'faa.json');
+const PORT=process.env.PORT||8080,ROOT=__dirname;
+// Persistent application data lives outside the deploy directory when a Render
+// persistent disk is available. Set ARM_WARRIOR_DATA_DIR to any persistent
+// mount you use; otherwise we fall back to ./data for local development.
+const PERSISTENT_DIR=process.env.ARM_WARRIOR_DATA_DIR||process.env.RENDER_DISK_PATH||((fs.existsSync('/var/data'))?path.join('/var/data','armwarrior'):null);
+const DATA=PERSISTENT_DIR||path.join(ROOT,'data'),DB=path.join(DATA,'faa.json');
 fs.mkdirSync(DATA,{recursive:true});
+
+// On the first boot after enabling persistent storage, copy the existing
+// bundled database once. After that, the persistent copy is the source of truth
+// and future ZIP/code deployments do not overwrite user-created content.
+const BUNDLED_DB=path.join(ROOT,'data','faa.json');
+if(!fs.existsSync(DB)&&BUNDLED_DB!==DB&&fs.existsSync(BUNDLED_DB))fs.copyFileSync(BUNDLED_DB,DB);
 
 const COMMON={
  weightClasses:['154 lbs','176 lbs','198 lbs','220 lbs','242 lbs','243+ lbs'],
@@ -66,7 +77,7 @@ function publicEvent(e,d){return{...e,competitorCount:d.registrations.filter(r=>
 async function api(q,r,p){
  let d=read();const before=JSON.stringify(d);d=migrate(d);if(JSON.stringify(d)!==before)write(d);
  try{
-  if(q.method==='GET'&&p==='/api/health')return send(r,200,{ok:true,app:'FLORIDA ARMWRESTLING',version:'16'});
+  if(q.method==='GET'&&p==='/api/health')return send(r,200,{ok:true,app:'FLORIDA ARMWRESTLING',version:'17'});
   if(q.method==='GET'&&p==='/api/events'){
    const events=[...d.events].sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.startTime||'').localeCompare(String(b.startTime||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
    return send(r,200,{events:events.map(e=>publicEvent(e,d))});
@@ -202,8 +213,30 @@ async function api(q,r,p){
    d.events.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.startTime||'').localeCompare(String(b.startTime||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
    write(d);return send(r,200,{event:e,events:d.events})
   }
+  if(q.method==='POST'&&p==='/api/admin/results/bulk'){
+   if(!admin(q,d))return send(r,403,{error:'Admin access required'});
+   const b=await body(q),eventId=String(b.eventId||'').trim(),hand=b.hand==='left'?'left':b.hand==='right'?'right':'';
+   if(!eventId||!hand||!Array.isArray(b.entries))return send(r,400,{error:'Tournament, hand and result entries are required'});
+   if(!d.events.some(e=>e.id===eventId))return send(r,404,{error:'Tournament not found'});
+   const now=new Date().toISOString(),saved=[];
+   for(const x of b.entries){const category=String(x.category||'').trim(),weightClass=String(x.weightClass||'').trim(),place=Number(x.place),athlete=String(x.athlete||'').trim();if(!category||!weightClass||![1,2,3].includes(place))continue;
+     const existing=d.results.find(z=>z.eventId===eventId&&z.hand===hand&&z.category===category&&z.weightClass===weightClass&&Number(z.place)===place);
+     if(existing){if(athlete)existing.athlete=athlete;else d.results=d.results.filter(z=>z.id!==existing.id);saved.push(existing)}
+     else if(athlete){const result={id:id('res'),eventId,hand,category,weightClass,division:category+' • '+weightClass,athlete,place,createdAt:now};d.results.push(result);saved.push(result)}
+   }
+   write(d);return send(r,200,{results:d.results.filter(x=>x.eventId===eventId),saved})
+  }
   if(q.method==='POST'&&p==='/api/admin/results'){
-   if(!admin(q,d))return send(r,403,{error:'Admin access required'});const b=await body(q);if(!b.eventId||!b.division||!b.athlete)return send(r,400,{error:'Event, division and athlete required'});const result={id:id('res'),eventId:b.eventId,division:b.division,athlete:b.athlete,place:Number(b.place||0),createdAt:new Date().toISOString()};d.results.push(result);write(d);return send(r,201,{result})
+   if(!admin(q,d))return send(r,403,{error:'Admin access required'});const b=await body(q);if(!b.eventId||!b.division||!b.athlete)return send(r,400,{error:'Event, division and athlete required'});const result={id:id('res'),eventId:b.eventId,division:b.division,athlete:b.athlete,place:Number(b.place||0),hand:b.hand==='left'?'left':b.hand==='right'?'right':'',category:String(b.category||'').trim(),weightClass:String(b.weightClass||'').trim(),createdAt:new Date().toISOString()};d.results.push(result);write(d);return send(r,201,{result})
+  }
+  if(q.method==='DELETE'&&p.startsWith('/api/admin/results/')){
+   if(!admin(q,d))return send(r,403,{error:'Admin access required'});const rid=p.split('/').pop(),idx=d.results.findIndex(x=>x.id===rid);if(idx<0)return send(r,404,{error:'Result not found'});const [removed]=d.results.splice(idx,1);write(d);return send(r,200,{result:removed})
+  }
+  if(q.method==='POST'&&p==='/api/admin/results/clear'){
+   if(!admin(q,d))return send(r,403,{error:'Admin access required'});const b=await body(q),eventId=String(b.eventId||'').trim();if(!eventId)return send(r,400,{error:'Tournament is required'});
+   if(b.all===true)d.results=d.results.filter(x=>x.eventId!==eventId);
+   else {const hand=b.hand==='left'||b.hand==='right'?b.hand:'';const category=String(b.category||'').trim(),weightClass=String(b.weightClass||'').trim();d.results=d.results.filter(x=>!(x.eventId===eventId&&(!hand||x.hand===hand)&&(!category||x.category===category)&&(!weightClass||x.weightClass===weightClass)))}
+   write(d);return send(r,200,{results:d.results.filter(x=>x.eventId===eventId)})
   }
   if(q.method==='GET'&&p.startsWith('/api/public/')){
    const bits=p.split('/');const eid=bits[3],type=bits[4];if(type==='roster')return send(r,200,{registrations:d.registrations.filter(x=>x.eventId===eid&&x.status!=='cancelled')});if(type==='results')return send(r,200,{results:d.results.filter(x=>x.eventId===eid)});

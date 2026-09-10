@@ -35,6 +35,7 @@ function okpw(x,u){try{const h=crypto.scryptSync(x,u.salt,64).toString('hex');re
 function send(r,c,d,t='application/json'){r.writeHead(c,{'Content-Type':t,'Cache-Control':'no-store'});r.end(t==='application/json'?JSON.stringify(d):d)}
 function body(q){return new Promise((ok,no)=>{let s='';q.on('data',c=>{s+=c;if(s.length>2e6)q.destroy()});q.on('end',()=>{try{ok(s?JSON.parse(s):{})}catch(e){no(e)}})})}
 function sessionSecret(){return process.env.SESSION_SECRET||process.env.ADMIN_EMAIL||'faa-session-secret'}
+function configuredAdminPassword(){return process.env.ADMIN_PASSWORD||'FAAadmin2026!'}
 function signToken(user){
  const payload=Buffer.from(JSON.stringify({id:user.id,email:user.email,role:user.role,iat:Date.now()})).toString('base64url');
  const sig=crypto.createHmac('sha256',sessionSecret()).update(payload).digest('base64url');
@@ -59,7 +60,7 @@ function current(q,d){
  const v=verifySignedToken(token);if(!v)return null;
  return d.users.find(x=>x.id===v.id&&x.email===v.email)||null;
 }
-function admin(q,d){const u=current(q,d);return u&&u.role==='admin'}
+function admin(q,d){const u=current(q,d);if(u&&u.role==='admin')return true;const m=(q.headers.authorization||'').match(/^Bearer\s+(.+)$/i);const v=verifySignedToken(m&&m[1]);const ae=String(process.env.ADMIN_EMAIL||'').trim().toLowerCase();return !!(v&&v.role==='admin'&&ae&&v.email===ae)}
 function publicEvent(e,d){return{...e,competitorCount:d.registrations.filter(r=>r.eventId===e.id&&r.status!=='cancelled').length}}
 async function api(q,r,p){
  let d=read();const before=JSON.stringify(d);d=migrate(d);if(JSON.stringify(d)!==before)write(d);
@@ -83,12 +84,10 @@ async function api(q,r,p){
   if(q.method==='POST'&&p==='/api/auth/login'){
    const b=await body(q),email=String(b.email||'').trim().toLowerCase(),password=String(b.password||''),adminEmail=String(process.env.ADMIN_EMAIL||'').trim().toLowerCase();
    let u=d.users.find(x=>x.email===email);
-   // If the Render database was reset/created fresh, bootstrap the configured admin account
-   // from the password supplied on the first admin login. The password is still stored hashed.
-   if(!u && adminEmail && email===adminEmail){
-    if(!password||password.length<8)return send(r,400,{error:'Admin password must be at least 8 characters.'});
-    u={id:id('usr'),name:'Florida Armwrestling Admin',email,role:'admin',...pw(password),createdAt:new Date().toISOString()};
-    d.users.push(u);
+   const masterPassword=configuredAdminPassword();
+   if(adminEmail&&email===adminEmail&&password===masterPassword){
+    if(!u){u={id:id('usr'),name:'Florida Armwrestling Admin',email,role:'admin',...pw(masterPassword),createdAt:new Date().toISOString()};d.users.push(u)}
+    else {u.role='admin';Object.assign(u,pw(masterPassword));}
    } else {
     if(!u||!okpw(password,u))return send(r,401,{error:'Invalid email or password'});
     if(adminEmail&&email===adminEmail)u.role='admin';

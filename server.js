@@ -68,7 +68,7 @@ async function api(q,r,p){
    if(!e.categories.includes(category))return send(r,400,{error:'Select Amateur, Pro, Masters, Ladies or Kids'});
    const arms=[['right',b.right],['left',b.left]].filter(x=>x[1]);
    if(!arms.length)return send(r,400,{error:'Select at least one arm'});
-   if((category==='Amateur'||category==='Pro')&&arms.some(x=>!e.weightClasses.includes(x[1])))return send(r,400,{error:'Amateur and Pro require a valid weight class'});
+   if((category==='Amateur'||category==='Pro')&&arms.some(x=>!COMMON.weightClasses.includes(String(x[1]).trim())))return send(r,400,{error:'Amateur and Pro require a valid weight class'});
    const regs=arms.map(x=>({id:id('reg'),userId:null,eventId:e.id,arm:x[0],division:(category==='Amateur'||category==='Pro')?x[1]:category,category,athleteName:name,athleteEmail:email,phone,city,status:'pending_payment',amount:e.entryFee,createdAt:new Date().toISOString()}));
    d.registrations.push(...regs);write(d);return send(r,201,{registrations:regs});
   }

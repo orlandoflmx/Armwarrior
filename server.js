@@ -33,7 +33,7 @@ function id(p){return p+'_'+crypto.randomBytes(8).toString('hex')}
 function pw(x,s=crypto.randomBytes(16).toString('hex')){return{salt:s,hash:crypto.scryptSync(x,s,64).toString('hex')}}
 function okpw(x,u){try{const h=crypto.scryptSync(x,u.salt,64).toString('hex');return crypto.timingSafeEqual(Buffer.from(h,'hex'),Buffer.from(u.hash,'hex'))}catch{return false}}
 function send(r,c,d,t='application/json'){r.writeHead(c,{'Content-Type':t,'Cache-Control':'no-store'});r.end(t==='application/json'?JSON.stringify(d):d)}
-function body(q){return new Promise((ok,no)=>{let s='';q.on('data',c=>{s+=c;if(s.length>2e6)q.destroy()});q.on('end',()=>{try{ok(s?JSON.parse(s):{})}catch(e){no(e)}})})}
+function body(q){return new Promise((ok,no)=>{let s='';q.on('data',c=>{s+=c;if(s.length>4e6){q.destroy();return}});q.on('end',()=>{try{ok(s?JSON.parse(s):{})}catch(e){no(e)}})})}
 function sessionSecret(){return process.env.SESSION_SECRET||process.env.ADMIN_EMAIL||'faa-session-secret'}
 function configuredAdminPassword(){return process.env.ADMIN_PASSWORD||'FAAadmin2026!'}
 function signToken(user){
@@ -102,7 +102,7 @@ async function api(q,r,p){
    const b=await body(q),weight=String(b.weight||''),side=String(b.side||'').toLowerCase(),name=String(b.name||'').trim(),photo=String(b.photo||'');
    if(!COMMON.weightClasses.includes(weight)||!['right','left'].includes(side))return send(r,400,{error:'Valid weight class and hand are required'});
    if(!name)return send(r,400,{error:'Champion name is required'});
-   if(photo && (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(photo)||photo.length>1500000))return send(r,400,{error:'Please upload a JPG, PNG or WebP image under 1 MB.'});
+   if(photo && (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(photo)||photo.length>1200000))return send(r,400,{error:'Please upload a JPG, PNG or WebP image under 1 MB.'});
    let c=d.champions.find(x=>x.weight===weight&&x.side===side);if(!c){c={id:id('champ'),weight,side};d.champions.push(c)}
    c.name=name;if(photo)c.photo=photo;c.updatedAt=new Date().toISOString();write(d);return send(r,200,{champion:c});
   }

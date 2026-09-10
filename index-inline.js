@@ -122,13 +122,26 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
   function cleanResults(){if($('results'))$('results').innerHTML='<h1>RESULTS</h1><div class="notice">Official results will appear here after FAA events are completed and results are published.</div>';if($('brackets'))$('brackets').innerHTML='<h1>LIVE BRACKETS</h1><div class="notice">Live brackets will appear here during an active FAA event.</div>'}
   function cleanChampions(){return;}
   function cleanHome(){if($('home')){const n=$('home').querySelector('.small');if(n&&n.textContent.includes('Florida Armwrestling Kicks Off'))n.textContent='Official 2026 FAA events, registration, results and event photos.'}}
-  function savePublicReceipt(items){try{const all=JSON.parse(localStorage.getItem('FAA_PUBLIC_REGS')||'[]');all.unshift(...items);localStorage.setItem('FAA_PUBLIC_REGS',JSON.stringify(all).slice(0,200000));}catch{}}
-  function renderMyRegistrations(){
-    const box=$('myList');if(!box)return;
+  let squareCard=null;
+  let squareReady=false;
+  async function setupSquare(){
+    const box=document.getElementById('squareCardContainer'),notice=document.getElementById('squarePaymentNotice');
+    if(!box)return;
     try{
-      const rows=JSON.parse(localStorage.getItem('FAA_PUBLIC_REGS')||'[]');
-      box.innerHTML=rows.length?rows.map(r=>`<div class="card form"><span class="pill open">${esc(String(r.status||'PENDING PAYMENT').replace('_',' ').toUpperCase())}</span><h2>${esc(r.eventName||'FAA Event')}</h2><div class="small"><b>${esc(r.name||'')}</b><br>${esc(r.email||'')}<br>${esc(r.division||'')} • ${esc(r.arm||'')}<br>${r.date?esc(fmtDate(r.date))+'<br>':''}Registration ID: ${esc(r.id||'')}</div></div>`).join(''):'<div class="notice">No registrations saved on this device yet.</div>';
-    }catch{box.innerHTML='<div class="notice">No registrations saved on this device yet.</div>'}
+      const cfg=await fetch('/api/square/config',{cache:'no-store',credentials:'same-origin'}).then(r=>r.json());
+      if(!cfg.enabled){return;}
+      const src=cfg.environment==='production'?'https://web.squarecdn.com/v1/square.js':'https://sandbox.web.squarecdn.com/v1/square.js';
+      if(!window.Square){await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src=src;sc.onload=resolve;sc.onerror=reject;document.head.appendChild(sc)});}
+      const payments=window.Square.payments(cfg.applicationId,cfg.locationId);
+      squareCard=await payments.card();
+      box.innerHTML='<div id="card-container"></div>';
+      await squareCard.attach('#card-container');
+      squareReady=true;
+      if(notice)notice.style.display='none';
+    }catch(err){
+      squareCard=null;squareReady=false;
+      if(notice)notice.textContent='Square payment fields are temporarily unavailable. You can still submit your registration as pending payment.';
+    }
   }
   function setupRegistration(){
     const next=$('next');if(!next)return;
@@ -170,6 +183,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
     [weight,arm,$('name'),$('email'),$('phone'),$('city')].forEach(el=>el?.addEventListener('input',updateSummary));
     syncCategory();updateSummary();
     edit?.addEventListener('click',()=>{$('name')?.focus();window.scrollTo({top:0,behavior:'smooth'});});
+    setupSquare();
     next.onclick=async()=>{
       const x=currentData();
       if(!x.n||!x.em||!x.ph||!x.eid||!x.category){showMsg('Please complete all required fields.');return}
@@ -181,17 +195,20 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
       next.disabled=true;next.textContent='SUBMITTING…';showMsg('');
       try{
         const payload={name:x.n,email:x.em,phone:x.ph,city:x.ct,eventId:x.eid,category:x.category,right:(x.armValue==='right'||x.armValue==='both')?(['Amateur','Pro'].includes(x.category)?x.wt:x.category):'',left:(x.armValue==='left'||x.armValue==='both')?(['Amateur','Pro'].includes(x.category)?x.wt:x.category):''};
+        if(squareReady&&squareCard){
+          const tokenResult=await squareCard.tokenize();
+          if(tokenResult.status!=='OK')throw Error('Please check your payment information and try again.');
+          payload.squareSourceId=tokenResult.token;
+        }
         const r=await fetch('/api/public-registrations',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();
         if(!r.ok)throw Error(d.error||'Registration failed');
         const ids=(d.registrations||[]).map(x=>x.id).join(', ');
-        savePublicReceipt((d.registrations||[]).map(r=>({id:r.id,status:r.status,name:x.n,email:x.em,eventName:x.e.name,date:x.e.date,division:x.division,arm:r.arm==='right'?'Right Arm':'Left Arm'})));
-        if($('confirmationText'))$('confirmationText').innerHTML='<strong>'+esc(x.n)+'</strong><br><br>'+esc(x.e.name)+'<br>'+esc(fmtDate(x.e.date))+'<br>'+esc(x.division)+'<br>'+esc(x.arms.join(' + '))+'<br><br>Status: <strong>PENDING PAYMENT</strong><br><br>Registration ID: '+esc(ids||'Saved')+'<br><br>Your registration is saved. Online payment will be connected at the final launch stage.';
-        next.textContent='REGISTRATION SAVED ✓';renderMyRegistrations();go('confirmation');
+        if($('confirmationText'))$('confirmationText').innerHTML='<strong>'+esc(x.n)+'</strong><br><br>'+esc(x.e.name)+'<br>'+esc(fmtDate(x.e.date))+'<br>'+esc(x.division)+'<br>'+esc(x.arms.join(' + '))+'<br><br>Status: <strong>'+esc(d.paymentStatus||'PENDING PAYMENT').replace('_',' ')+'</strong><br><br>Registration ID: '+esc(ids||'Saved')+'<br><br>Your registration has been saved.';
+        next.textContent='SUBMITTED ✓';go('confirmation');
       }catch(err){next.disabled=false;next.textContent='SUBMIT REGISTRATION →';showMsg(err&&err.message==='Failed to fetch'?'Unable to reach the registration server. Please try again.':(err?.message||'Registration failed.'))}
     };
   }
   window.go=function(id){
-    if(id==='more')id='my';
     document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
     const t=$(id);if(!t)return;t.classList.add('active');
     document.querySelectorAll('[data-go]').forEach(x=>x.classList.toggle('active',x.dataset.go===id));
@@ -202,8 +219,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
     if(id==='schedule'&&$('scheduleList'))$('scheduleList').innerHTML=schedule();
     if(id==='events'&&$('eventCatalog'))$('eventCatalog').innerHTML=EVENTS.map(card).join('');
     if(id==='register'&&window.__faaEvent&&$('eventSelect'))$('eventSelect').value=window.__faaEvent.id;
-    if(id==='register'&&$('next')){$('next').disabled=false;$('next').textContent='REVIEW REGISTRATION →'}
-    if(id==='my')renderMyRegistrations();
+    if(id==='register'&&$('next')){$('next').disabled=false;$('next').textContent='SUBMIT →'}
     window.scrollTo(0,0);
   };
   document.addEventListener('click',e=>{const b=e.target.closest('[data-launch-event]');if(b){e.preventDefault();openEvent(b.dataset.launchEvent);return}const p=e.target.closest('[data-prefill-event]');if(p){window.__faaEvent=eventById(p.dataset.prefillEvent);setTimeout(()=>{if($('eventSelect'))$('eventSelect').value=p.dataset.prefillEvent},0)}});

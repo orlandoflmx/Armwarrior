@@ -33,7 +33,7 @@ function migrate(d){
 function id(p){return p+'_'+crypto.randomBytes(8).toString('hex')}
 function pw(x,s=crypto.randomBytes(16).toString('hex')){return{salt:s,hash:crypto.scryptSync(x,s,64).toString('hex')}}
 function okpw(x,u){try{const h=crypto.scryptSync(x,u.salt,64).toString('hex');return crypto.timingSafeEqual(Buffer.from(h,'hex'),Buffer.from(u.hash,'hex'))}catch{return false}}
-function send(r,c,d,t='application/json'){r.writeHead(c,{'Content-Type':t,'Cache-Control':'no-store'});r.end(t==='application/json'?JSON.stringify(d):d)}
+function send(r,c,d,t='application/json'){r.writeHead(c,{'Content-Type':t,'Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline' https://sandbox.web.squarecdn.com https://web.squarecdn.com; frame-src 'self' https://sandbox.web.squarecdn.com https://web.squarecdn.com; connect-src 'self' https://sandbox.web.squarecdn.com https://web.squarecdn.com https://pci-connect.squareupsandbox.com https://pci-connect.squareup.com; style-src 'self' 'unsafe-inline' https://sandbox.web.squarecdn.com https://web.squarecdn.com; font-src 'self' data: https://square-fonts-production-f.squarecdn.com https://d1g145x70srn7h.cloudfront.net; img-src 'self' data: blob: https://sandbox.web.squarecdn.com https://web.squarecdn.com; base-uri 'self'; form-action 'self'; object-src 'none'"});r.end(t==='application/json'?JSON.stringify(d):d)}
 function body(q){return new Promise((ok,no)=>{let s='';q.on('data',c=>{s+=c;if(s.length>4e6){q.destroy();return}});q.on('end',()=>{try{ok(s?JSON.parse(s):{})}catch(e){no(e)}})})}
 function sessionSecret(){return process.env.SESSION_SECRET||process.env.ADMIN_EMAIL||'faa-session-secret'}
 function configuredAdminPassword(){return process.env.ADMIN_PASSWORD||'FAAadmin2026!'}
@@ -68,7 +68,7 @@ async function api(q,r,p){
  try{
   if(q.method==='GET'&&p==='/api/health')return send(r,200,{ok:true,app:'FLORIDA ARMWRESTLING',version:'16'});
   if(q.method==='GET'&&p==='/api/events')return send(r,200,{events:d.events.sort((a,b)=>a.date.localeCompare(b.date)).map(e=>publicEvent(e,d))});
-  if(q.method==='GET'&&p.startsWith('/api/events/')){const eid=p.split('/')[3],e=d.events.find(x=>x.id===eid);if(!e)return send(r,404,{error:'Event not found'});return send(r,200,{event:publicEvent(e,d),registrations:d.registrations.filter(x=>x.eventId===eid&&x.status!=='cancelled').map(x=>({id:x.id,userId:x.userId,division:x.division,status:x.status}))})}
+  if(q.method==='GET'&&p.startsWith('/api/events/')){const eid=p.split('/')[3],e=d.events.find(x=>x.id===eid);if(!e)return send(r,404,{error:'Event not found'});return send(r,200,{event:publicEvent(e,d)})}
   if(q.method==='GET'&&p==='/api/me'){const u=current(q,d);if(!u)return send(r,401,{error:'Sign in first'});return send(r,200,{user:{id:u.id,name:u.name,email:u.email,role:u.role}})}
   if(q.method==='GET'&&p==='/api/registrations'){const u=current(q,d);if(!u)return send(r,401,{error:'Sign in first'});return send(r,200,{registrations:d.registrations.filter(x=>x.userId===u.id)})}
   if(q.method==='GET'&&p==='/api/admin/dashboard'){
@@ -110,6 +110,12 @@ async function api(q,r,p){
   if(q.method==='DELETE'&&p.startsWith('/api/admin/champions/')){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});const cid=p.split('/').pop();d.champions=d.champions.filter(x=>x.id!==cid);write(d);return send(r,200,{ok:true});
   }
+  if(q.method==='GET'&&p==='/api/square/config'){
+   const applicationId=String(process.env.SQUARE_APPLICATION_ID||'').trim();
+   const locationId=String(process.env.SQUARE_LOCATION_ID||'').trim();
+   const environment=String(process.env.SQUARE_ENVIRONMENT||'sandbox').toLowerCase()==='production'?'production':'sandbox';
+   return send(r,200,{enabled:!!(applicationId&&locationId),applicationId,locationId,environment});
+  }
   if(q.method==='POST'&&p==='/api/public-registrations'){
    const b=await body(q),name=String(b.name||'').trim(),email=String(b.email||'').trim().toLowerCase(),phone=String(b.phone||'').trim(),city=String(b.city||'').trim(),category=String(b.category||'').trim(),e=d.events.find(x=>x.id===b.eventId);
    if(!name||!email||!phone||!e)return send(r,400,{error:'Name, email, phone and event are required'});
@@ -124,8 +130,20 @@ async function api(q,r,p){
    const duplicate=arms.find(x=>d.registrations.some(r=>r.eventId===e.id&&r.athleteEmail===email&&r.arm===x[0]&&r.division===((category==='Amateur'||category==='Pro')?x[1]:category)&&r.status!=='cancelled'));
    if(duplicate)return send(r,409,{error:`This email is already registered for the ${duplicate[0]==='right'?'right':'left'} arm in this division for this event.`});
    const groupId=id('grp'),perHand=String(e.entryUnit||'').toLowerCase().includes('hand'),totalAmount=perHand?Number(e.entryFee||0)*arms.length:Number(e.entryFee||0);
-   const regs=arms.map((x,i)=>({id:id('reg'),groupId,userId:null,eventId:e.id,arm:x[0],division:(category==='Amateur'||category==='Pro')?x[1]:category,category,athleteName:name,athleteEmail:email,phone,city,status:'pending_payment',amount:perHand?Number(e.entryFee||0):(i===0?totalAmount:0),totalAmount,createdAt:new Date().toISOString()}));
-   d.registrations.push(...regs);write(d);return send(r,201,{registrations:regs,totalAmount});
+   let paymentStatus='pending_payment',squarePaymentId='';
+   if(b.squareSourceId){
+    const token=String(process.env.SQUARE_ACCESS_TOKEN||'').trim(),locationId=String(process.env.SQUARE_LOCATION_ID||'').trim();
+    if(!token||!locationId)return send(r,400,{error:'Square payments are not configured yet. Please submit without payment or contact the administrator.'});
+    const env=String(process.env.SQUARE_ENVIRONMENT||'sandbox').toLowerCase()==='production'?'production':'sandbox';
+    const base=env==='production'?'https://connect.squareup.com':'https://connect.squareupsandbox.com';
+    const idem=id('sq');
+    const sr=await fetch(base+'/v2/payments',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json','Square-Version':'2026-08-19'},body:JSON.stringify({source_id:String(b.squareSourceId),idempotency_key:idem,amount_money:{amount:Math.round(totalAmount*100),currency:'USD'},location_id:locationId,autocomplete:true,reference_id:groupId,note:'Florida Armwrestling registration - '+name})});
+    const sd=await sr.json().catch(()=>({}));
+    if(!sr.ok)return send(r,400,{error:sd?.errors?.[0]?.detail||'Square payment could not be completed. No registration was saved.'});
+    paymentStatus='paid';squarePaymentId=sd.payment?.id||'';
+   }
+   const regs=arms.map((x,i)=>({id:id('reg'),groupId,userId:null,eventId:e.id,arm:x[0],division:(category==='Amateur'||category==='Pro')?x[1]:category,category,athleteName:name,athleteEmail:email,phone,city,status:paymentStatus==='paid'?'paid':'pending_payment',squarePaymentId,amount:perHand?Number(e.entryFee||0):(i===0?totalAmount:0),totalAmount,createdAt:new Date().toISOString()}));
+   d.registrations.push(...regs);write(d);return send(r,201,{registrations:regs,totalAmount,paymentStatus,squarePaymentId});
   }
   if(q.method==='POST'&&p==='/api/registrations'){
    const u=current(q,d);if(!u)return send(r,401,{error:'Sign in first'});const b=await body(q),e=d.events.find(x=>x.id===b.eventId);if(!e)return send(r,404,{error:'Event not found'});if(e.status!=='open')return send(r,400,{error:'Registration is closed for this event'});if(!b.division)return send(r,400,{error:'Select a division'});

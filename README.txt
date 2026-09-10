@@ -47,3 +47,11 @@ The password can be overridden in Render with ADMIN_PASSWORD.
 ADMIN_EMAIL remains the admin email.
 
 V40: restored the global data-go navigation click handler. No registration/auth logic changed.
+
+
+V45 PAYMENT / PRIVACY
+- Public My Registrations / Upcoming Registrations UI removed. Registration records are managed in Admin only.
+- Public event detail no longer returns registration records.
+- Square Web Payments SDK card element is prepared.
+- Optional Render environment variables: SQUARE_APPLICATION_ID, SQUARE_LOCATION_ID, SQUARE_ACCESS_TOKEN, SQUARE_ENVIRONMENT=sandbox|production.
+- Square access token is server-only and must never be placed in public HTML.

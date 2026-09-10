@@ -58,8 +58,16 @@ async function setStatus(id,status){try{await api('/api/admin/registrations/'+id
 function renderAthletes(){const rows=data.users.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td><span class="badge">${esc(u.role)}</span></td><td>${data.registrations.filter(r=>r.userId===u.id&&r.status!=='cancelled').length}</td></tr>`);$('athTable').innerHTML=rows.length?`<table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Registrations</th></tr></thead><tbody>${rows.join('')}</tbody></table>`:'<div class="muted">No athletes yet.</div>'}
 let resultHand='right';
 function resultEvent(){return data?.events?.find(e=>e.id===($('revent')?.value||''))||data?.events?.[0]}
-function resultCategories(e){return (e?.categories&&e.categories.length?e.categories:['Kids','Ladies','Amateur','Pro','Masters']).filter(Boolean)}
-function resultWeights(e){return (e?.weightClasses&&e.weightClasses.length?e.weightClasses:(e?.divisions&&e.divisions.length?e.divisions:['154 lbs','176 lbs','198 lbs','220 lbs','242 lbs','243+ lbs'])).filter(Boolean)}
+function resultCategories(e){
+ const order=['Pro','Ladies','Masters','Amateur','Kids'];
+ const configured=(e?.categories&&e.categories.length?e.categories:order).map(x=>String(x).trim());
+ return order.filter(cat=>configured.some(x=>x.toLowerCase()===cat.toLowerCase()));
+}
+function resultHasWeights(category){return ['Pro','Amateur'].includes(String(category));}
+function resultWeights(e,category){
+ if(!resultHasWeights(category))return ['Class'];
+ return (e?.weightClasses&&e.weightClasses.length?e.weightClasses:(e?.divisions&&e.divisions.length?e.divisions:['154 lbs','176 lbs','198 lbs','220 lbs','242 lbs','243+ lbs'])).filter(Boolean);
+}
 function resultKey(category,weight,place){return String(category)+'||'+String(weight)+'||'+String(place)}
 function setResultHand(hand){resultHand=hand==='left'?'left':'right';renderResultEntry();renderResultsTable()}
 function renderResults(){
@@ -72,9 +80,16 @@ function renderResults(){
 function renderResultEntry(){
  const box=$('resultEntry'),e=resultEvent();if(!box||!e)return;
  $('leftResultsBtn')?.classList.toggle('primary',resultHand==='left');$('rightResultsBtn')?.classList.toggle('primary',resultHand==='right');
- const cats=resultCategories(e),weights=resultWeights(e),rs=(data.results||[]).filter(r=>r.eventId===e.id&&(r.hand||'right')===resultHand);
- box.innerHTML=cats.map(cat=>`<div class="result-category card"><h2>${esc(cat)} — ${resultHand==='left'?'LEFT HAND':'RIGHT HAND'}</h2>${weights.map(w=>{const vals=[1,2,3].map(place=>rs.find(r=>r.category===cat&&r.weightClass===w&&Number(r.place)===place));return `<div class="result-class"><div class="topline"><b>${esc(w)}</b><button type="button" class="btn" onclick="clearResultClass('${encodeURIComponent(cat)}','${encodeURIComponent(w)}')">CLEAR CLASS</button></div><div class="result-places">${[1,2,3].map((place,i)=>`<div><label>${['🥇 1ST','🥈 2ND','🥉 3RD'][i]}</label><input class="result-input" data-result-key="${esc(resultKey(cat,w,place))}" value="${esc(vals[i]?.athlete||'')}" placeholder="Enter athlete name"></div>`).join('')}</div></div>`}).join('')}</div>`).join('')||'<div class="muted">This tournament has no categories or weight classes configured.</div>';
-}
+ const cats=resultCategories(e),rs=(data.results||[]).filter(r=>r.eventId===e.id&&(r.hand||'right')===resultHand);
+ box.innerHTML=cats.map(cat=>{
+   const hasWeights=resultHasWeights(cat),weights=resultWeights(e,cat);
+   if(!hasWeights){
+     const vals=[1,2,3].map(place=>rs.find(r=>r.category===cat&&(!r.weightClass||r.weightClass==='Class'||r.weightClass===cat)&&Number(r.place)===place));
+     return `<div class="result-category card"><h2>${esc(cat)} — ${resultHand==='left'?'LEFT HAND':'RIGHT HAND'}</h2><div class="result-places">${[1,2,3].map((place,i)=>`<div><label>${['🥇 1ST','🥈 2ND','🥉 3RD'][i]}</label><input class="result-input" data-result-key="${esc(resultKey(cat,'Class',place))}" value="${esc(vals[i]?.athlete||'')}" placeholder="Enter athlete name"></div>`).join('')}</div><div class="actions"><button type="button" class="btn" onclick="clearResultClass('${encodeURIComponent(cat)}','${encodeURIComponent('Class')}')">CLEAR ${esc(cat.toUpperCase())} RESULTS</button></div></div>`;
+   }
+   return `<div class="result-category card"><h2>${esc(cat)} — ${resultHand==='left'?'LEFT HAND':'RIGHT HAND'}</h2>${weights.map(w=>{const vals=[1,2,3].map(place=>rs.find(r=>r.category===cat&&r.weightClass===w&&Number(r.place)===place));return `<div class="result-class"><div class="topline"><b>${esc(w)}</b><button type="button" class="btn" onclick="clearResultClass('${encodeURIComponent(cat)}','${encodeURIComponent(w)}')">CLEAR CLASS</button></div><div class="result-places">${[1,2,3].map((place,i)=>`<div><label>${['🥇 1ST','🥈 2ND','🥉 3RD'][i]}</label><input class="result-input" data-result-key="${esc(resultKey(cat,w,place))}" value="${esc(vals[i]?.athlete||'')}" placeholder="Enter athlete name"></div>`).join('')}</div></div>`}).join('')}</div>`;
+ }).join('')||'<div class="muted">This tournament has no configured result categories.</div>';
+} 
 async function saveAllResults(){
  const e=resultEvent(),msg=$('resultMsg');if(!e){return}msg.textContent='Saving results…';
  const entries=[...document.querySelectorAll('.result-input')].map(x=>{const parts=x.dataset.resultKey.split('||');return {category:parts[0],weightClass:parts[1],place:Number(parts[2]),athlete:x.value.trim()}});

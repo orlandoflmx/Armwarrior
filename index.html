@@ -170,7 +170,41 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 (()=>{const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));async function loadPhotos(){try{const d=await fetch('/api/public/photos').then(r=>r.json()),a=(d.photos||[]);if($('photos'))$('photos').innerHTML='<h1>PHOTOS</h1><div class="small" style="margin-bottom:12px">Official photos uploaded by Florida Armwrestling.</div><div class="launch-photo-grid">'+(a.length?a.map(x=>`<div><img src="${x.photo}" alt="${esc(x.title||'FAA photo')}"><span>${esc(x.title||'FAA photo')}${x.caption?' • '+esc(x.caption):''}</span></div>`).join(''):'<div class="notice">Official champion photos will appear here.</div>')+'</div>'}catch{}}const old=window.go;window.go=function(id){old(id);if(id==='photos')loadPhotos()};document.addEventListener('DOMContentLoaded',loadPhotos)})();
 </script>
 <script id="faa-public-results-js">
-(()=>{const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));async function loadResults(){try{const d=await fetch('/api/public/results',{cache:'no-store'}).then(r=>r.json()),rs=d.results||[],events=window.FAA_LAUNCH_EVENTS||[];const groups={};rs.forEach(r=>{const e=events.find(x=>x.id===r.eventId);const en=e?.name||r.eventName||r.eventId||'Tournament';(groups[en]??={event:e,rows:[]}).rows.push(r)});if(!$('results'))return;let html='<h1>RESULTS</h1>';const names=Object.keys(groups);if(!names.length)html+='<div class="notice">Official results will appear here after events are completed and results are published.</div>';else names.forEach(name=>{const g=groups[name],rows=g.rows;html+=`<div class="card"><div class="red">${esc(name)}</div>${g.event?.date?`<div class="small">${esc(g.event.date)}${g.event.location?' • '+esc(g.event.location):''}</div>`:''}${['left','right'].map(hand=>{const hr=rows.filter(r=>(r.hand||'right')===hand);if(!hr.length)return '';const cats=[...new Set(hr.map(r=>r.category||r.division||'Uncategorized'))];return `<h2 style="margin-top:16px">${hand==='left'?'LEFT HAND':'RIGHT HAND'}</h2>`+cats.map(cat=>{const cr=hr.filter(r=>(r.category||r.division||'Uncategorized')===cat),weights=[...new Set(cr.map(r=>r.weightClass||'Class'))];return `<div style="margin-top:12px"><b>${esc(cat)}</b>${weights.map(w=>{const wr=cr.filter(r=>(r.weightClass||'Class')===w).sort((a,b)=>(Number(a.place)||99)-(Number(b.place)||99));return `<div class="list"><div class="grow"><b>${esc(w)}</b><div class="small">${wr.map(r=>`${Number(r.place)===1?'🥇':Number(r.place)===2?'🥈':'🥉'} ${esc(r.athlete)} — ${Number(r.place)===1?'1ST':Number(r.place)===2?'2ND':'3RD'}`).join('<br>')}</div></div></div>`}).join('')}</div>`}).join('')}).join('')}</div>`});$('results').innerHTML=html}catch{}}window.loadFAAResults=loadResults;const old=window.go;window.go=function(id){old(id);if(id==='results')loadResults()};document.addEventListener('DOMContentLoaded',loadResults)})();
+(()=>{
+ const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+ const order=['Pro','Ladies','Masters','Amateur','Kids'];
+ const hasWeights=cat=>['Pro','Amateur'].includes(String(cat));
+ async function loadResults(){
+  try{
+   const d=await fetch('/api/public/results',{cache:'no-store'}).then(r=>r.json()),rs=d.results||[],events=window.FAA_LAUNCH_EVENTS||[],groups={};
+   rs.forEach(r=>{const e=events.find(x=>x.id===r.eventId),en=e?.name||r.eventName||r.eventId||'Tournament';(groups[en]??={event:e,rows:[]}).rows.push(r)});
+   if(!$('results'))return;let html='<h1>RESULTS</h1>';const names=Object.keys(groups);
+   if(!names.length)html+='<div class="notice">Official results will appear here after events are completed and results are published.</div>';
+   else names.forEach(name=>{
+    const g=groups[name],rows=g.rows;html+=`<div class="card"><div class="red">${esc(name)}</div>${g.event?.date?`<div class="small">${esc(g.event.date)}${g.event.location?' • '+esc(g.event.location):''}</div>`:''}`;
+    ['left','right'].forEach(hand=>{
+     const hr=rows.filter(r=>(r.hand||'right')===hand);if(!hr.length)return;
+     const configured=g.event?.categories||[];const cats=order.filter(cat=>configured.some(x=>String(x).toLowerCase()===cat.toLowerCase())||hr.some(r=>String(r.category||r.division||'').toLowerCase()===cat.toLowerCase()));
+     html+=`<h2 style="margin-top:16px">${hand==='left'?'LEFT HAND':'RIGHT HAND'}</h2>`;
+     cats.forEach(cat=>{
+      const cr=hr.filter(r=>String(r.category||r.division||'Uncategorized').toLowerCase()===cat.toLowerCase());if(!cr.length)return;
+      html+=`<div style="margin-top:12px"><b>${esc(cat)}</b>`;
+      if(hasWeights(cat)){
+       const weights=[...new Set(cr.map(r=>r.weightClass||'Class'))];
+       weights.forEach(w=>{const wr=cr.filter(r=>(r.weightClass||'Class')===w).sort((a,b)=>(Number(a.place)||99)-(Number(b.place)||99));html+=`<div class="list"><div class="grow"><b>${esc(w)}</b><div class="small">${wr.map(r=>`${Number(r.place)===1?'🥇':Number(r.place)===2?'🥈':'🥉'} ${esc(r.athlete)} — ${Number(r.place)===1?'1ST':Number(r.place)===2?'2ND':'3RD'}`).join('<br>')}</div></div></div>`});
+      }else{
+       const wr=cr.sort((a,b)=>(Number(a.place)||99)-(Number(b.place)||99));html+=`<div class="list"><div class="grow"><div class="small">${wr.map(r=>`${Number(r.place)===1?'🥇':Number(r.place)===2?'🥈':'🥉'} ${esc(r.athlete)} — ${Number(r.place)===1?'1ST':Number(r.place)===2?'2ND':'3RD'}`).join('<br>')}</div></div></div>`;
+      }
+      html+='</div>';
+     });
+    });
+    html+='</div>';
+   });
+   $('results').innerHTML=html;
+  }catch{}
+ }
+ window.loadFAAResults=loadResults;const old=window.go;window.go=function(id){old(id);if(id==='results')loadResults()};document.addEventListener('DOMContentLoaded',loadResults)
+})();
 </script>
 <script id="faa-launch-polish-js">
 

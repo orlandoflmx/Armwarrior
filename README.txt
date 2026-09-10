@@ -34,3 +34,6 @@ V25 INTEGRATED CHAMPIONS
 - Admin can approve/hide athlete profiles and assign approved athletes to Right/Left champion slots for every weight class.
 - Public Champions, Results, Events, and registration data read from the same server data store.
 - Photos are resized in-browser before upload to keep the database manageable.
+
+
+V27 fixes: Admin login now bootstraps the configured ADMIN_EMAIL account on first login if the deployed database is fresh/reset. The password is stored hashed. The public Social page Facebook buttons now link to the official Florida Armwrestling Facebook share URL provided for this deployment.

@@ -57,8 +57,19 @@ async function api(q,r,p){
    d.users.push(u);const t=id('sess');d.sessions.push({token:t,userId:u.id});write(d);return send(r,201,{token:t,user:{id:u.id,name:u.name,email:u.email,role:u.role}})
   }
   if(q.method==='POST'&&p==='/api/auth/login'){
-   const b=await body(q),email=String(b.email||'').trim().toLowerCase(),u=d.users.find(x=>x.email===email);if(!u||!okpw(String(b.password||''),u))return send(r,401,{error:'Invalid email or password'});
-   if(process.env.ADMIN_EMAIL&&email===process.env.ADMIN_EMAIL.trim().toLowerCase())u.role='admin';const t=id('sess');d.sessions.push({token:t,userId:u.id});write(d);return send(r,200,{token:t,user:{id:u.id,name:u.name,email:u.email,role:u.role}})
+   const b=await body(q),email=String(b.email||'').trim().toLowerCase(),password=String(b.password||''),adminEmail=String(process.env.ADMIN_EMAIL||'').trim().toLowerCase();
+   let u=d.users.find(x=>x.email===email);
+   // If the Render database was reset/created fresh, bootstrap the configured admin account
+   // from the password supplied on the first admin login. The password is still stored hashed.
+   if(!u && adminEmail && email===adminEmail){
+    if(!password||password.length<8)return send(r,400,{error:'Admin password must be at least 8 characters.'});
+    u={id:id('usr'),name:'Florida Armwrestling Admin',email,role:'admin',...pw(password),createdAt:new Date().toISOString()};
+    d.users.push(u);
+   } else {
+    if(!u||!okpw(password,u))return send(r,401,{error:'Invalid email or password'});
+    if(adminEmail&&email===adminEmail)u.role='admin';
+   }
+   const t=id('sess');d.sessions.push({token:t,userId:u.id});write(d);return send(r,200,{token:t,user:{id:u.id,name:u.name,email:u.email,role:u.role}})
   }
   if(q.method==='POST'&&p==='/api/auth/logout'){const m=(q.headers.authorization||'').match(/^Bearer (.+)$/);d.sessions=d.sessions.filter(s=>!m||s.token!==m[1]);write(d);return send(r,200,{ok:true})}
   if(q.method==='GET'&&p==='/api/public/champions')return send(r,200,{champions:d.champions,weights:COMMON.weightClasses});

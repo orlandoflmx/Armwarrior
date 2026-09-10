@@ -27,3 +27,10 @@ npm start
 
 Admin:
 Set ADMIN_EMAIL to the authorized admin email in Render environment variables.
+
+
+V25 INTEGRATED CHAMPIONS
+- Public athlete photo submissions are stored on the server for admin review.
+- Admin can approve/hide athlete profiles and assign approved athletes to Right/Left champion slots for every weight class.
+- Public Champions, Results, Events, and registration data read from the same server data store.
+- Photos are resized in-browser before upload to keep the database manageable.

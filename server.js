@@ -12,12 +12,12 @@ const SEEDED_EVENTS=[
  {id:'evt_florida_state_2026',name:'Florida State Championship',date:'2026-12-05',location:'Mudville Grill, Jacksonville, FL',address:'3105 Beach Blvd, Jacksonville, FL 32207',status:'open',entryFee:40,entryUnit:'per hand',startTime:'12:00 PM',doorsTime:'11:00 AM',divisions:COMMON.weightClasses, categories:COMMON.categories, weightClasses:COMMON.weightClasses, prizes:['1st Place','2nd Place','3rd Place'],description:'FAA sanctioned Florida State Championship. Trophies and bragging rights.'}
 ];
 
-function freshDb(){return{events:SEEDED_EVENTS,users:[],registrations:[],results:[],sessions:[]}}
+function freshDb(){return{events:SEEDED_EVENTS,users:[],registrations:[],results:[],sessions:[],athleteProfiles:[],champions:[]}}
 if(!fs.existsSync(DB))fs.writeFileSync(DB,JSON.stringify(freshDb(),null,2));
 const read=()=>JSON.parse(fs.readFileSync(DB,'utf8'));
 const write=d=>fs.writeFileSync(DB,JSON.stringify(d,null,2));
 function migrate(d){
- d.events=Array.isArray(d.events)?d.events:[];d.users=Array.isArray(d.users)?d.users:[];d.registrations=Array.isArray(d.registrations)?d.registrations:[];d.results=Array.isArray(d.results)?d.results:[];d.sessions=Array.isArray(d.sessions)?d.sessions:[];
+ d.events=Array.isArray(d.events)?d.events:[];d.users=Array.isArray(d.users)?d.users:[];d.registrations=Array.isArray(d.registrations)?d.registrations:[];d.results=Array.isArray(d.results)?d.results:[];d.sessions=Array.isArray(d.sessions)?d.sessions:[];d.athleteProfiles=Array.isArray(d.athleteProfiles)?d.athleteProfiles:[];d.champions=Array.isArray(d.champions)?d.champions:[];
  for(const seed of SEEDED_EVENTS){
   const old=d.events.find(e=>e.id===seed.id);
   if(!old)d.events.push(seed);
@@ -47,7 +47,7 @@ async function api(q,r,p){
   if(q.method==='GET'&&p==='/api/registrations'){const u=current(q,d);if(!u)return send(r,401,{error:'Sign in first'});return send(r,200,{registrations:d.registrations.filter(x=>x.userId===u.id)})}
   if(q.method==='GET'&&p==='/api/admin/dashboard'){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});
-   return send(r,200,{events:d.events.sort((a,b)=>a.date.localeCompare(b.date)),registrations:d.registrations,users:d.users.map(u=>({id:u.id,name:u.name,email:u.email,role:u.role})),results:d.results});
+   return send(r,200,{events:d.events.sort((a,b)=>a.date.localeCompare(b.date)),registrations:d.registrations,users:d.users.map(u=>({id:u.id,name:u.name,email:u.email,role:u.role})),results:d.results,athleteProfiles:d.athleteProfiles,champions:d.champions});
   }
   if(q.method==='POST'&&p==='/api/auth/register'){
    const b=await body(q),email=String(b.email||'').trim().toLowerCase();if(!b.name||!email||!b.password||b.password.length<8)return send(r,400,{error:'Name, email and an 8+ character password are required'});
@@ -61,6 +61,20 @@ async function api(q,r,p){
    if(process.env.ADMIN_EMAIL&&email===process.env.ADMIN_EMAIL.trim().toLowerCase())u.role='admin';const t=id('sess');d.sessions.push({token:t,userId:u.id});write(d);return send(r,200,{token:t,user:{id:u.id,name:u.name,email:u.email,role:u.role}})
   }
   if(q.method==='POST'&&p==='/api/auth/logout'){const m=(q.headers.authorization||'').match(/^Bearer (.+)$/);d.sessions=d.sessions.filter(s=>!m||s.token!==m[1]);write(d);return send(r,200,{ok:true})}
+  if(q.method==='GET'&&p==='/api/public/champions')return send(r,200,{champions:d.champions,weights:COMMON.weightClasses});
+  if(q.method==='GET'&&p==='/api/public/results')return send(r,200,{results:d.results});
+  if(q.method==='POST'&&p==='/api/admin/champions'){
+   if(!admin(q,d))return send(r,403,{error:'Admin access required'});
+   const b=await body(q),weight=String(b.weight||''),side=String(b.side||'').toLowerCase(),name=String(b.name||'').trim(),photo=String(b.photo||'');
+   if(!COMMON.weightClasses.includes(weight)||!['right','left'].includes(side))return send(r,400,{error:'Valid weight class and hand are required'});
+   if(!name)return send(r,400,{error:'Champion name is required'});
+   if(photo && (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(photo)||photo.length>1500000))return send(r,400,{error:'Please upload a JPG, PNG or WebP image under 1 MB.'});
+   let c=d.champions.find(x=>x.weight===weight&&x.side===side);if(!c){c={id:id('champ'),weight,side};d.champions.push(c)}
+   c.name=name;if(photo)c.photo=photo;c.updatedAt=new Date().toISOString();write(d);return send(r,200,{champion:c});
+  }
+  if(q.method==='DELETE'&&p.startsWith('/api/admin/champions/')){
+   if(!admin(q,d))return send(r,403,{error:'Admin access required'});const cid=p.split('/').pop();d.champions=d.champions.filter(x=>x.id!==cid);write(d);return send(r,200,{ok:true});
+  }
   if(q.method==='POST'&&p==='/api/public-registrations'){
    const b=await body(q),name=String(b.name||'').trim(),email=String(b.email||'').trim().toLowerCase(),phone=String(b.phone||'').trim(),city=String(b.city||'').trim(),category=String(b.category||'').trim(),e=d.events.find(x=>x.id===b.eventId);
    if(!name||!email||!e)return send(r,400,{error:'Name, email and event are required'});

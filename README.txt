@@ -37,3 +37,5 @@ V25 INTEGRATED CHAMPIONS
 
 
 V27 fixes: Admin login now bootstraps the configured ADMIN_EMAIL account on first login if the deployed database is fresh/reset. The password is stored hashed. The public Social page Facebook buttons now link to the official Florida Armwrestling Facebook share URL provided for this deployment.
+
+V28 AUTH FIX: Admin authentication now uses a signed stateless session token (with database-session compatibility), so Render multi-instance/restart behavior does not drop the admin session. The admin login also clears stale browser tokens before attempting a fresh login. Facebook uses the provided FAA link and renders as a full-width social button.

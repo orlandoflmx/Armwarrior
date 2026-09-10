@@ -34,13 +34,37 @@ function pw(x,s=crypto.randomBytes(16).toString('hex')){return{salt:s,hash:crypt
 function okpw(x,u){try{const h=crypto.scryptSync(x,u.salt,64).toString('hex');return crypto.timingSafeEqual(Buffer.from(h,'hex'),Buffer.from(u.hash,'hex'))}catch{return false}}
 function send(r,c,d,t='application/json'){r.writeHead(c,{'Content-Type':t,'Cache-Control':'no-store'});r.end(t==='application/json'?JSON.stringify(d):d)}
 function body(q){return new Promise((ok,no)=>{let s='';q.on('data',c=>{s+=c;if(s.length>2e6)q.destroy()});q.on('end',()=>{try{ok(s?JSON.parse(s):{})}catch(e){no(e)}})})}
-function current(q,d){const m=(q.headers.authorization||'').match(/^Bearer (.+)$/),s=m&&d.sessions.find(x=>x.token===m[1]);return s&&d.users.find(x=>x.id===s.userId)}
+function sessionSecret(){return process.env.SESSION_SECRET||process.env.ADMIN_EMAIL||'faa-session-secret'}
+function signToken(user){
+ const payload=Buffer.from(JSON.stringify({id:user.id,email:user.email,role:user.role,iat:Date.now()})).toString('base64url');
+ const sig=crypto.createHmac('sha256',sessionSecret()).update(payload).digest('base64url');
+ return payload+'.'+sig;
+}
+function verifySignedToken(token){
+ try{
+  const [payload,sig]=String(token||'').split('.');
+  if(!payload||!sig)return null;
+  const expected=crypto.createHmac('sha256',sessionSecret()).update(payload).digest('base64url');
+  if(!crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(expected)))return null;
+  const u=JSON.parse(Buffer.from(payload,'base64url').toString('utf8'));
+  if(!u.id||!u.email||!u.role)return null;
+  return u;
+ }catch{return null}
+}
+function current(q,d){
+ const m=(q.headers.authorization||'').match(/^Bearer\s+(.+)$/i),token=m&&m[1];
+ if(!token)return null;
+ const s=d.sessions.find(x=>x.token===token);
+ if(s){const u=d.users.find(x=>x.id===s.userId);if(u)return u}
+ const v=verifySignedToken(token);if(!v)return null;
+ return d.users.find(x=>x.id===v.id&&x.email===v.email)||null;
+}
 function admin(q,d){const u=current(q,d);return u&&u.role==='admin'}
 function publicEvent(e,d){return{...e,competitorCount:d.registrations.filter(r=>r.eventId===e.id&&r.status!=='cancelled').length}}
 async function api(q,r,p){
  let d=read();const before=JSON.stringify(d);d=migrate(d);if(JSON.stringify(d)!==before)write(d);
  try{
-  if(q.method==='GET'&&p==='/api/health')return send(r,200,{ok:true,app:'FLORIDA ARMWRESTLING',version:'15'});
+  if(q.method==='GET'&&p==='/api/health')return send(r,200,{ok:true,app:'FLORIDA ARMWRESTLING',version:'16'});
   if(q.method==='GET'&&p==='/api/events')return send(r,200,{events:d.events.sort((a,b)=>a.date.localeCompare(b.date)).map(e=>publicEvent(e,d))});
   if(q.method==='GET'&&p.startsWith('/api/events/')){const eid=p.split('/')[3],e=d.events.find(x=>x.id===eid);if(!e)return send(r,404,{error:'Event not found'});return send(r,200,{event:publicEvent(e,d),registrations:d.registrations.filter(x=>x.eventId===eid&&x.status!=='cancelled').map(x=>({id:x.id,userId:x.userId,division:x.division,status:x.status}))})}
   if(q.method==='GET'&&p==='/api/me'){const u=current(q,d);if(!u)return send(r,401,{error:'Sign in first'});return send(r,200,{user:{id:u.id,name:u.name,email:u.email,role:u.role}})}
@@ -54,7 +78,7 @@ async function api(q,r,p){
    if(d.users.some(u=>u.email===email))return send(r,409,{error:'Email already registered'});
    const role=process.env.ADMIN_EMAIL&&email===process.env.ADMIN_EMAIL.trim().toLowerCase()?'admin':'athlete';
    const u={id:id('usr'),name:b.name.trim(),email,role,...pw(b.password),createdAt:new Date().toISOString()};
-   d.users.push(u);const t=id('sess');d.sessions.push({token:t,userId:u.id});write(d);return send(r,201,{token:t,user:{id:u.id,name:u.name,email:u.email,role:u.role}})
+   d.users.push(u);const t=signToken(u);d.sessions.push({token:t,userId:u.id});write(d);return send(r,201,{token:t,user:{id:u.id,name:u.name,email:u.email,role:u.role}})
   }
   if(q.method==='POST'&&p==='/api/auth/login'){
    const b=await body(q),email=String(b.email||'').trim().toLowerCase(),password=String(b.password||''),adminEmail=String(process.env.ADMIN_EMAIL||'').trim().toLowerCase();
@@ -69,7 +93,7 @@ async function api(q,r,p){
     if(!u||!okpw(password,u))return send(r,401,{error:'Invalid email or password'});
     if(adminEmail&&email===adminEmail)u.role='admin';
    }
-   const t=id('sess');d.sessions.push({token:t,userId:u.id});write(d);return send(r,200,{token:t,user:{id:u.id,name:u.name,email:u.email,role:u.role}})
+   const t=signToken(u);d.sessions.push({token:t,userId:u.id});write(d);return send(r,200,{token:t,user:{id:u.id,name:u.name,email:u.email,role:u.role}})
   }
   if(q.method==='POST'&&p==='/api/auth/logout'){const m=(q.headers.authorization||'').match(/^Bearer (.+)$/);d.sessions=d.sessions.filter(s=>!m||s.token!==m[1]);write(d);return send(r,200,{ok:true})}
   if(q.method==='GET'&&p==='/api/public/champions')return send(r,200,{champions:d.champions,weights:COMMON.weightClasses});

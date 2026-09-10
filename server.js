@@ -181,8 +181,26 @@ async function api(q,r,p){
    write(d);
    return send(r,201,{event:e,events:d.events});
   }
+  if(q.method==='DELETE'&&p.startsWith('/api/admin/events/')){
+   if(!admin(q,d))return send(r,403,{error:'Admin access required'});
+   const eid=p.split('/').pop(),idx=d.events.findIndex(x=>x.id===eid);
+   if(idx<0)return send(r,404,{error:'Event not found'});
+   const [removed]=d.events.splice(idx,1);
+   d.registrations=d.registrations.filter(x=>x.eventId!==eid);
+   d.results=d.results.filter(x=>x.eventId!==eid);
+   write(d);
+   return send(r,200,{event:removed,events:d.events});
+  }
   if(q.method==='PATCH'&&p.startsWith('/api/admin/events/')){
-   if(!admin(q,d))return send(r,403,{error:'Admin access required'});const eid=p.split('/').pop(),e=d.events.find(x=>x.id===eid);if(!e)return send(r,404,{error:'Event not found'});const b=await body(q);for(const k of ['name','date','location','address','status','entryUnit','startTime','doorsTime','description'])if(b[k]!==undefined)e[k]=b[k];if(b.entryFee!==undefined)e.entryFee=Number(b.entryFee);for(const k of ['divisions','categories','weightClasses','prizes'])if(Array.isArray(b[k]))e[k]=b[k];if(b.flyer!==undefined){const flyer=String(b.flyer||'');if(flyer && (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(flyer)||flyer.length>1200000))return send(r,400,{error:'Please upload an event flyer under 1 MB.'});e.flyer=flyer}write(d);return send(r,200,{event:e})
+   if(!admin(q,d))return send(r,403,{error:'Admin access required'});const eid=p.split('/').pop(),e=d.events.find(x=>x.id===eid);if(!e)return send(r,404,{error:'Event not found'});const b=await body(q);
+   for(const k of ['name','date','location','address','status','entryUnit','startTime','doorsTime','description'])if(b[k]!==undefined)e[k]=String(b[k]??'').trim();
+   if(!e.name||!e.date||!e.location)return send(r,400,{error:'Event name, date, and venue/location are required.'});
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(e.date))return send(r,400,{error:'Please choose a valid event date.'});
+   if(b.entryFee!==undefined)e.entryFee=Number.isFinite(Number(b.entryFee))?Number(b.entryFee):0;
+   for(const k of ['divisions','categories','weightClasses','prizes'])if(Array.isArray(b[k]))e[k]=b[k];
+   if(b.flyer!==undefined){const flyer=String(b.flyer||'');if(flyer && (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(flyer)||flyer.length>1200000))return send(r,400,{error:'Please upload an event flyer under 1 MB.'});e.flyer=flyer}
+   d.events.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.startTime||'').localeCompare(String(b.startTime||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+   write(d);return send(r,200,{event:e,events:d.events})
   }
   if(q.method==='POST'&&p==='/api/admin/results'){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});const b=await body(q);if(!b.eventId||!b.division||!b.athlete)return send(r,400,{error:'Event, division and athlete required'});const result={id:id('res'),eventId:b.eventId,division:b.division,athlete:b.athlete,place:Number(b.place||0),createdAt:new Date().toISOString()};d.results.push(result);write(d);return send(r,201,{result})

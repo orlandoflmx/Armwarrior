@@ -55,7 +55,7 @@ label{display:block;color:#aaa;font-size:9px;font-weight:900;margin-top:10px}
 @media(max-width:460px){.champions-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.champion-card{padding:6px}.champion-weight{font-size:12px}.champion-card .champion-arm{font-size:8px;margin-bottom:5px}.champion-card .champion-photo{height:150px}.champion-card .champion-name{font-size:10px;padding:7px 3px}}
 @media(max-width:460px){.champion-pair{grid-template-columns:1fr}.champion-photo{height:220px}}
 .bracket{display:grid;grid-template-columns:1fr 1fr;gap:7px}.match{border:1px solid #39434b;border-radius:8px;overflow:hidden}.match div{padding:9px;border-bottom:1px solid #292929;font-size:11px}.match div:last-child{border:0}.score{float:right;color:#ff2028;font-weight:900}
-.bottom{position:fixed;bottom:0;left:0;transform:none;width:100vw;max-width:none;height:72px;background:#070707;border-top:1px solid #444;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));z-index:40;padding-bottom:env(safe-area-inset-bottom)}
+.bottom{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(620px,100%);height:72px;background:#070707;border-top:1px solid #444;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));z-index:40;padding-bottom:env(safe-area-inset-bottom)}
 .notice{padding:11px;border-radius:8px;border:1px solid #633038;background:#17080a;color:#ddd;font-size:10px;line-height:1.5}
 .switch{display:flex;border:1px solid #444;border-radius:18px;overflow:hidden;margin-bottom:10px}.switch button{flex:1;border:0;background:#111;color:#aaa;padding:9px;font-size:9px;font-weight:900}.switch button.on{background:#ef1019;color:#fff}
 .full-art{width:100%;border:1px solid #444;border-radius:10px;display:block}

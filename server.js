@@ -112,14 +112,20 @@ async function api(q,r,p){
   }
   if(q.method==='POST'&&p==='/api/public-registrations'){
    const b=await body(q),name=String(b.name||'').trim(),email=String(b.email||'').trim().toLowerCase(),phone=String(b.phone||'').trim(),city=String(b.city||'').trim(),category=String(b.category||'').trim(),e=d.events.find(x=>x.id===b.eventId);
-   if(!name||!email||!e)return send(r,400,{error:'Name, email and event are required'});
+   if(!name||!email||!phone||!e)return send(r,400,{error:'Name, email, phone and event are required'});
+   if(name.length<2||name.length>80)return send(r,400,{error:'Please enter a valid full name'});
+   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return send(r,400,{error:'Please enter a valid email address'});
+   if(phone.replace(/\D/g,'').length<7)return send(r,400,{error:'Please enter a valid phone number'});
    if(e.status!=='open')return send(r,400,{error:'Registration is closed for this event'});
    if(!e.categories.includes(category))return send(r,400,{error:'Select Amateur, Pro, Masters, Ladies or Kids'});
    const arms=[['right',b.right],['left',b.left]].filter(x=>x[1]);
    if(!arms.length)return send(r,400,{error:'Select at least one arm'});
    if((category==='Amateur'||category==='Pro')&&arms.some(x=>!e.weightClasses.includes(x[1])))return send(r,400,{error:'Amateur and Pro require a valid weight class'});
-   const regs=arms.map(x=>({id:id('reg'),userId:null,eventId:e.id,arm:x[0],division:(category==='Amateur'||category==='Pro')?x[1]:category,category,athleteName:name,athleteEmail:email,phone,city,status:'pending_payment',amount:e.entryFee,createdAt:new Date().toISOString()}));
-   d.registrations.push(...regs);write(d);return send(r,201,{registrations:regs});
+   const duplicate=arms.find(x=>d.registrations.some(r=>r.eventId===e.id&&r.athleteEmail===email&&r.arm===x[0]&&r.division===((category==='Amateur'||category==='Pro')?x[1]:category)&&r.status!=='cancelled'));
+   if(duplicate)return send(r,409,{error:`This email is already registered for the ${duplicate[0]==='right'?'right':'left'} arm in this division for this event.`});
+   const groupId=id('grp'),perHand=String(e.entryUnit||'').toLowerCase().includes('hand'),totalAmount=perHand?Number(e.entryFee||0)*arms.length:Number(e.entryFee||0);
+   const regs=arms.map((x,i)=>({id:id('reg'),groupId,userId:null,eventId:e.id,arm:x[0],division:(category==='Amateur'||category==='Pro')?x[1]:category,category,athleteName:name,athleteEmail:email,phone,city,status:'pending_payment',amount:perHand?Number(e.entryFee||0):(i===0?totalAmount:0),totalAmount,createdAt:new Date().toISOString()}));
+   d.registrations.push(...regs);write(d);return send(r,201,{registrations:regs,totalAmount});
   }
   if(q.method==='POST'&&p==='/api/registrations'){
    const u=current(q,d);if(!u)return send(r,401,{error:'Sign in first'});const b=await body(q),e=d.events.find(x=>x.id===b.eventId);if(!e)return send(r,404,{error:'Event not found'});if(e.status!=='open')return send(r,400,{error:'Registration is closed for this event'});if(!b.division)return send(r,400,{error:'Select a division'});

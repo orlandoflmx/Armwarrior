@@ -67,13 +67,17 @@ async function api(q,r,p){
  let d=read();const before=JSON.stringify(d);d=migrate(d);if(JSON.stringify(d)!==before)write(d);
  try{
   if(q.method==='GET'&&p==='/api/health')return send(r,200,{ok:true,app:'FLORIDA ARMWRESTLING',version:'16'});
-  if(q.method==='GET'&&p==='/api/events')return send(r,200,{events:d.events.sort((a,b)=>a.date.localeCompare(b.date)).map(e=>publicEvent(e,d))});
+  if(q.method==='GET'&&p==='/api/events'){
+   const events=[...d.events].sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.startTime||'').localeCompare(String(b.startTime||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+   return send(r,200,{events:events.map(e=>publicEvent(e,d))});
+  }
   if(q.method==='GET'&&p.startsWith('/api/events/')){const eid=p.split('/')[3],e=d.events.find(x=>x.id===eid);if(!e)return send(r,404,{error:'Event not found'});return send(r,200,{event:publicEvent(e,d)})}
   if(q.method==='GET'&&p==='/api/me'){const u=current(q,d);if(!u)return send(r,401,{error:'Sign in first'});return send(r,200,{user:{id:u.id,name:u.name,email:u.email,role:u.role}})}
   if(q.method==='GET'&&p==='/api/registrations'){const u=current(q,d);if(!u)return send(r,401,{error:'Sign in first'});return send(r,200,{registrations:d.registrations.filter(x=>x.userId===u.id)})}
   if(q.method==='GET'&&p==='/api/admin/dashboard'){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});
-   return send(r,200,{events:d.events.sort((a,b)=>a.date.localeCompare(b.date)),registrations:d.registrations,users:d.users.map(u=>({id:u.id,name:u.name,email:u.email,role:u.role})),results:d.results,athleteProfiles:d.athleteProfiles,champions:d.champions,photos:d.photos});
+   const events=[...d.events].sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.startTime||'').localeCompare(String(b.startTime||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+   return send(r,200,{events,registrations:d.registrations,users:d.users.map(u=>({id:u.id,name:u.name,email:u.email,role:u.role})),results:d.results,athleteProfiles:d.athleteProfiles,champions:d.champions,photos:d.photos});
   }
   if(q.method==='POST'&&p==='/api/auth/register'){
    const b=await body(q),email=String(b.email||'').trim().toLowerCase();if(!b.name||!email||!b.password||b.password.length<8)return send(r,400,{error:'Name, email and an 8+ character password are required'});
@@ -164,10 +168,18 @@ async function api(q,r,p){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});const rid=p.split('/').pop(),b=await body(q),reg=d.registrations.find(x=>x.id===rid);if(!reg)return send(r,404,{error:'Registration not found'});if(b.status)reg.status=b.status;write(d);return send(r,200,{registration:reg})
   }
   if(q.method==='POST'&&p==='/api/admin/events'){
-   if(!admin(q,d))return send(r,403,{error:'Admin access required'});const b=await body(q);if(!b.name||!b.date)return send(r,400,{error:'Event name and date required'});
-   const flyer=String(b.flyer||'');if(flyer && (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(flyer)||flyer.length>1200000))return send(r,400,{error:'Please upload an event flyer under 1 MB.'});
-   const e={id:id('evt'),flyer,name:b.name,date:b.date,location:b.location||'Florida',address:b.address||'',status:b.status||'open',entryFee:Number(b.entryFee||0),entryUnit:b.entryUnit||'per class',startTime:b.startTime||'',doorsTime:b.doorsTime||'',divisions:Array.isArray(b.divisions)&&b.divisions.length?b.divisions:['154 lbs','176 lbs','198 lbs','220 lbs','242 lbs','243+ lbs'],categories:Array.isArray(b.categories)&&b.categories.length?b.categories:COMMON.categories,weightClasses:Array.isArray(b.weightClasses)&&b.weightClasses.length?b.weightClasses:COMMON.weightClasses,prizes:Array.isArray(b.prizes)?b.prizes:[],description:b.description||''};
-   d.events.push(e);write(d);return send(r,201,{event:e})
+   if(!admin(q,d))return send(r,403,{error:'Admin access required'});
+   const b=await body(q);
+   const name=String(b.name||'').trim(),date=String(b.date||'').trim();
+   if(!name||!date)return send(r,400,{error:'Event name and date are required.'});
+   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date))return send(r,400,{error:'Please choose a valid event date.'});
+   const flyer=String(b.flyer||'');
+   if(flyer && (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(flyer)||flyer.length>1200000))return send(r,400,{error:'Please upload an event flyer under 1 MB.'});
+   const e={id:id('evt'),flyer,name,date,location:String(b.location||'Florida').trim(),address:String(b.address||'').trim(),status:b.status==='closed'?'closed':'open',entryFee:Number.isFinite(Number(b.entryFee))?Number(b.entryFee):0,entryUnit:b.entryUnit==='per hand'?'per hand':'per class',startTime:String(b.startTime||'').trim(),doorsTime:String(b.doorsTime||'').trim(),divisions:Array.isArray(b.divisions)&&b.divisions.length?b.divisions:['154 lbs','176 lbs','198 lbs','220 lbs','242 lbs','243+ lbs'],categories:Array.isArray(b.categories)&&b.categories.length?b.categories:COMMON.categories,weightClasses:Array.isArray(b.weightClasses)&&b.weightClasses.length?b.weightClasses:COMMON.weightClasses,prizes:Array.isArray(b.prizes)?b.prizes:[],description:String(b.description||'').trim(),createdAt:new Date().toISOString()};
+   d.events.push(e);
+   d.events.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.startTime||'').localeCompare(String(b.startTime||''))||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+   write(d);
+   return send(r,201,{event:e,events:d.events});
   }
   if(q.method==='PATCH'&&p.startsWith('/api/admin/events/')){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});const eid=p.split('/').pop(),e=d.events.find(x=>x.id===eid);if(!e)return send(r,404,{error:'Event not found'});const b=await body(q);for(const k of ['name','date','location','address','status','entryUnit','startTime','doorsTime','description'])if(b[k]!==undefined)e[k]=b[k];if(b.entryFee!==undefined)e.entryFee=Number(b.entryFee);for(const k of ['divisions','categories','weightClasses','prizes'])if(Array.isArray(b[k]))e[k]=b[k];if(b.flyer!==undefined){const flyer=String(b.flyer||'');if(flyer && (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(flyer)||flyer.length>1200000))return send(r,400,{error:'Please upload an event flyer under 1 MB.'});e.flyer=flyer}write(d);return send(r,200,{event:e})

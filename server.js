@@ -61,6 +61,17 @@ async function api(q,r,p){
    if(process.env.ADMIN_EMAIL&&email===process.env.ADMIN_EMAIL.trim().toLowerCase())u.role='admin';const t=id('sess');d.sessions.push({token:t,userId:u.id});write(d);return send(r,200,{token:t,user:{id:u.id,name:u.name,email:u.email,role:u.role}})
   }
   if(q.method==='POST'&&p==='/api/auth/logout'){const m=(q.headers.authorization||'').match(/^Bearer (.+)$/);d.sessions=d.sessions.filter(s=>!m||s.token!==m[1]);write(d);return send(r,200,{ok:true})}
+  if(q.method==='POST'&&p==='/api/public-registrations'){
+ const b=await body(q),name=String(b.name||'').trim(),email=String(b.email||'').trim().toLowerCase(),phone=String(b.phone||'').trim(),city=String(b.city||'').trim(),category=String(b.category||'').trim(),e=d.events.find(x=>x.id===b.eventId);
+ if(!name||!email||!e)return send(r,400,{error:'Name, email and event are required'});
+ if(e.status!=='open')return send(r,400,{error:'Registration is closed for this event'});
+ if(!e.categories.includes(category))return send(r,400,{error:'Select Amateur, Pro, Masters, Ladies or Kids'});
+ const arms=[['right',b.right],['left',b.left]].filter(x=>x[1]);
+ if(!arms.length)return send(r,400,{error:'Select at least one arm'});
+ if((category==='Amateur'||category==='Pro')&&arms.some(x=>!e.weightClasses.includes(x[1])))return send(r,400,{error:'Amateur and Pro require a valid weight class'});
+ const regs=arms.map(x=>({id:id('reg'),userId:null,eventId:e.id,arm:x[0],division:(category==='Amateur'||category==='Pro')?x[1]:category,category,athleteName:name,athleteEmail:email,phone,city,status:'pending_payment',amount:e.entryFee,createdAt:new Date().toISOString()}));
+ d.registrations.push(...regs);write(d);return send(r,201,{registrations:regs});
+  }
   if(q.method==='POST'&&p==='/api/registrations'){
    const u=current(q,d);if(!u)return send(r,401,{error:'Sign in first'});const b=await body(q),e=d.events.find(x=>x.id===b.eventId);if(!e)return send(r,404,{error:'Event not found'});if(e.status!=='open')return send(r,400,{error:'Registration is closed for this event'});if(!b.division)return send(r,400,{error:'Select a division'});
    if(d.registrations.some(x=>x.userId===u.id&&x.eventId===e.id&&x.division===b.division&&x.status!=='cancelled'))return send(r,409,{error:'You are already registered for this division'});

@@ -339,6 +339,9 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
     try{
       const cfg=await fetch('/api/square/config',{cache:'no-store',credentials:'same-origin'}).then(r=>r.json());
       if(!cfg.enabled){return;}
+      if(cfg.serverConfigured===false){
+        if(notice)notice.textContent='Square card entry is ready, but the server payment credential still needs to be configured in Render.';
+      }
       const src=cfg.environment==='production'?'https://web.squarecdn.com/v1/square.js':'https://sandbox.web.squarecdn.com/v1/square.js';
       if(!window.Square){await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src=src;sc.onload=resolve;sc.onerror=reject;document.head.appendChild(sc)});}
       const payments=window.Square.payments(cfg.applicationId,cfg.locationId);
@@ -404,11 +407,20 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
       next.disabled=true;next.textContent='SUBMITTING…';showMsg('');
       try{
         const payload={name:x.n,email:x.em,phone:x.ph,city:x.ct,eventId:x.eid,category:x.category,right:(x.armValue==='right'||x.armValue==='both')?(['Amateur','Pro'].includes(x.category)?x.wt:x.category):'',left:(x.armValue==='left'||x.armValue==='both')?(['Amateur','Pro'].includes(x.category)?x.wt:x.category):''};
-        if(squareReady&&squareCard){
-          const tokenResult=await squareCard.tokenize();
-          if(tokenResult.status!=='OK')throw Error('Please check your payment information and try again.');
-          payload.squareSourceId=tokenResult.token;
-        }
+        if(!squareReady||!squareCard)throw Error('Square payment is not ready yet. Please wait a moment and try again.');
+        const givenName=(x.n.trim().split(/\s+/)[0]||x.n).trim();
+        const nameParts=x.n.trim().split(/\s+/);
+        const familyName=nameParts.length>1?nameParts.slice(1).join(' '):givenName;
+        const tokenResult=await squareCard.tokenize({
+          amount:x.total.toFixed(2),
+          currencyCode:'USD',
+          intent:'CHARGE',
+          customerInitiated:true,
+          sellerKeyedIn:false,
+          billingContact:{givenName,familyName,email:x.em,phone:x.ph,city:x.ct||undefined,countryCode:'US'}
+        });
+        if(tokenResult.status!=='OK')throw Error('Please check your payment information and try again.');
+        payload.squareSourceId=tokenResult.token;
         const r=await fetch('/api/public-registrations',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();
         if(!r.ok)throw Error(d.error||'Registration failed');
         const ids=(d.registrations||[]).map(x=>x.id).join(', ');

@@ -136,10 +136,11 @@ async function api(q,r,p){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});const pid=p.split('/').pop();d.photos=d.photos.filter(x=>x.id!==pid);write(d);return send(r,200,{ok:true});
   }
   if(q.method==='GET'&&p==='/api/square/config'){
-   const applicationId=String(process.env.SQUARE_APPLICATION_ID||'').trim();
-   const locationId=String(process.env.SQUARE_LOCATION_ID||'').trim();
+   const applicationId=String(process.env.SQUARE_APPLICATION_ID||'sandbox-sq0idb-qMiVXPyD43PGDYcUWyKtzw').trim();
+   const locationId=String(process.env.SQUARE_LOCATION_ID||'LS03NS66RDGP2').trim();
    const environment=String(process.env.SQUARE_ENVIRONMENT||'sandbox').toLowerCase()==='production'?'production':'sandbox';
-   return send(r,200,{enabled:!!(applicationId&&locationId),applicationId,locationId,environment});
+   const serverConfigured=!!String(process.env.SQUARE_ACCESS_TOKEN||'').trim();
+   return send(r,200,{enabled:!!(applicationId&&locationId),serverConfigured,applicationId,locationId,environment});
   }
   if(q.method==='POST'&&p==='/api/public-registrations'){
    const b=await body(q),name=String(b.name||'').trim(),email=String(b.email||'').trim().toLowerCase(),phone=String(b.phone||'').trim(),city=String(b.city||'').trim(),category=String(b.category||'').trim(),e=d.events.find(x=>x.id===b.eventId);

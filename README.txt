@@ -73,3 +73,29 @@ RENDER PERSISTENT DISK SETUP (ONE-TIME)
 5. The first deployment with the disk copies the existing bundled data once if the persistent database is empty. After that, future ZIP deployments leave the persistent data alone.
 
 IMPORTANT: A ZIP file by itself cannot make a hosting provider's local filesystem permanent. The Render Persistent Disk is what makes the saved events, champions, photos, registrations, and other admin changes survive future deployments/redeploys.
+
+SQUARE SANDBOX PAYMENT SETUP (V57)
+----------------------------------
+This build configures the existing public registration flow for Square Sandbox card payments.
+
+Configured Sandbox values:
+- Application ID: sandbox-sq0idb-qMiVXPyD43PGDYcUWyKtzw
+- Location ID: LS03NS66RDGP2
+
+RENDER ENVIRONMENT VARIABLE REQUIRED:
+- SQUARE_ACCESS_TOKEN = your Square Sandbox Access Token
+
+Optional environment variables (already default to the Sandbox values above):
+- SQUARE_APPLICATION_ID
+- SQUARE_LOCATION_ID
+- SQUARE_ENVIRONMENT=sandbox
+
+IMPORTANT:
+- Never put SQUARE_ACCESS_TOKEN in this ZIP, GitHub, or public source.
+- The browser receives only the Application ID and Location ID; the access token stays server-side.
+- After adding SQUARE_ACCESS_TOKEN in Render, redeploy/restart the service.
+- Registration will not be saved if a Square payment is attempted and Square rejects the payment.
+- The existing registration form, event selection, category/weight logic, Admin registrations, Champions, Photos, Events, and Results are preserved.
+
+SQUARE TESTING:
+Use Square Sandbox test card values from Square's official Sandbox Payments documentation. No real card is used in Sandbox.

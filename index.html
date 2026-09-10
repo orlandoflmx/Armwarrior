@@ -1,6 +1,6 @@
 <!doctype html>
 <html><head>
-<meta name="faa-build" content="v19-account-cache-fix"><meta charset="utf-8">
+<meta name="faa-build" content="v23-direct-registration""><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#050505">
 <title>FLORIDA ARMWRESTLING</title>
@@ -53,7 +53,7 @@ label{display:block;color:#aaa;font-size:9px;font-weight:900;margin-top:10px}
 <style id="faa-account-v16">#accountPanel{box-shadow:0 0 0 1px rgba(239,16,25,.12),0 8px 24px #000}#accountPanel h2{font-size:18px}#accountPanel .grid{grid-template-columns:1fr 1fr}@media(max-width:390px){#accountPanel .grid{grid-template-columns:1fr}}</style>
 </head><body><div class="app">
 <header><div class="brand"><div class="brand-title">FLORIDA<span>ARMWRESTLING</span></div></div>
-<div class="nav"><button data-go="events" class="active"><b>▣</b>EVENTS</button><button data-go="register"><b>♟+</b>REGISTER</button><button data-go="schedule"><b>◫</b>SCHEDULE</button><button data-go="my"><b>◆</b>MY EVENTS</button></div></header>
+<div class="nav"><button data-go="events" class="active"><b>▣</b>EVENTS</button><button data-go="register"><b>♟+</b>REGISTER</button><button data-go="schedule"><b>◫</b>SCHEDULE</button></div></header>
 
 <main id="home" class="screen active">
 <div id="nextEventHero" class="hero card"><div class="body"><div class="red">NEXT EVENT</div><h1>LOADING 2026 SCHEDULE…</h1><div class="small">Loading official FAA event information.</div></div></div>
@@ -67,7 +67,7 @@ label{display:block;color:#aaa;font-size:9px;font-weight:900;margin-top:10px}
 
 <main id="event" class="screen"><div id="eventDetails"><div class="notice">Select an event to view details.</div></div></main>
 
-<main id="register" class="screen"><h1>REGISTER</h1><div class="tabs"><button class="active">1 ATHLETE INFO</button><button>2 DIVISIONS</button><button>3 PAYMENT</button><button>4 CONFIRM</button></div><div class="card form"><h2>ATHLETE INFORMATION</h2><div class="small">Choose an official 2026 FAA event and enter your athlete information.</div><label>FULL NAME *</label><input id="name" placeholder="John Smith"><label>EMAIL ADDRESS *</label><input id="email" placeholder="john@example.com"><label>PHONE</label><input id="phone" placeholder="(904) 555-1234"><label>CITY / HOMETOWN</label><input id="city" placeholder="Jacksonville"><label>EVENT</label><select id="eventSelect"><option value="">Loading events…</option></select><label>RIGHT ARM CLASS</label><select id="right"><option value="">Select class</option></select><label>LEFT ARM CLASS</label><select id="left"><option value="">Select class</option></select><div id="msg"></div><button class="cta" id="next">NEXT →</button></div></main>
+<main id="register" class="screen"><h1>REGISTER</h1><div class="card form"><h2>EVENT REGISTRATION</h2><div class="small">Register directly for an official 2026 FAA event. No member account or password required.</div><label>FULL NAME *</label><input id="name" placeholder="John Smith"><label>EMAIL ADDRESS *</label><input id="email" type="email" placeholder="john@example.com"><label>PHONE *</label><input id="phone" placeholder="(904) 555-1234"><label>CITY / HOMETOWN</label><input id="city" placeholder="Jacksonville"><label>EVENT *</label><select id="eventSelect"><option value="">Loading events…</option></select><label>CATEGORY *</label><select id="category"><option value="">Select category</option><option>Amateur</option><option>Pro</option><option>Masters</option><option>Ladies</option><option>Kids</option></select><div id="weightWrap"><label>WEIGHT CLASS *</label><select id="weight"><option value="">Select weight class</option><option>154 lbs</option><option>176 lbs</option><option>198 lbs</option><option>220 lbs</option><option>242 lbs</option><option>243+ lbs</option></select></div><label>ARM *</label><select id="arm"><option value="right">Right Arm</option><option value="left">Left Arm</option><option value="both">Both Arms</option></select><select id="right" style="display:none"><option value=""></option></select><select id="left" style="display:none"><option value=""></option></select><div id="msg"></div><button class="cta" id="next">REGISTER FOR EVENT →</button></div></main>
 
 <main id="payment" class="screen"><h1>PAYMENT</h1><div class="card form"><div class="notice">Payment will be connected at the final launch stage. No charge is made yet.</div><h2 id="due">$0.00</h2><label>CARD NUMBER</label><input placeholder="4242 4242 4242 4242"><div class="grid"><input placeholder="MM / YY"><input placeholder="CVV"></div><button class="cta" id="pay">PROCESS PAYMENT →</button></div></main>
 <main id="confirmation" class="screen"><div class="card form" style="text-align:center;margin-top:30px"><div style="font-size:62px;color:#35e36b">✓</div><h1>REGISTRATION COMPLETE!</h1><div id="confirmationText" class="small"></div><button class="cta" data-go="my">VIEW MY REGISTRATION</button><button class="cta outline" data-go="home">BACK TO HOME</button></div></main>
@@ -110,42 +110,9 @@ render();
 </script><script>
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));}
 </script><script>
-// V11 live API connection. Payment intentionally remains disabled until the end.
+// Public site: member sign-in removed. Admin APIs remain available to the protected admin experience.
 (function(){
- const KEY='FAA_TOKEN'; let token=localStorage.getItem(KEY), me=null;
- const api=async(path,opt={})=>{opt.headers=Object.assign({'Content-Type':'application/json'},opt.headers||{});if(token)opt.headers.Authorization='Bearer '+token;const r=await fetch(path,opt);let d={};try{d=await r.json()}catch(e){}if(!r.ok)throw new Error(d.error||('Request failed '+r.status));return d};
- function addPanel(){
-   const home=document.getElementById('home'); if(!home||document.getElementById('accountPanel'))return;
-   const box=document.createElement('div');box.id='accountPanel';box.className='card form';
-   box.style.border='1px solid #ef1019';
-   box.innerHTML=`<div class="red">FAA MEMBER ACCOUNT</div><h2 style="margin-top:4px">SIGN IN OR CREATE ACCOUNT</h2><div id="accountStatus" class="small">Create your free FAA account to register for events and view your registrations.</div><div id="authFields"><label>FULL NAME <span class="muted">(new accounts)</span></label><input id="authName" type="text" placeholder="Your full name"><label>EMAIL</label><input id="authEmail" type="email" placeholder="you@example.com"><label>PASSWORD</label><input id="authPass" type="password" placeholder="8+ characters"><div class="grid"><button class="cta" id="loginBtn">SIGN IN</button><button class="cta outline" id="signupBtn">CREATE ACCOUNT</button></div></div><button class="cta outline" id="logoutBtn" style="display:none">SIGN OUT</button><div id="adminLink" style="display:none;margin-top:8px"><button class="cta" id="adminBtn">FAA ADMIN DASHBOARD →</button></div>`;
-   const hero=home.querySelector('#nextEventHero'); if(hero)hero.after(box); else home.prepend(box);
-   loginBtn.onclick=async()=>{try{const d=await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:authEmail.value.trim(),password:authPass.value})});token=d.token;localStorage.setItem(KEY,token);await refresh()}catch(e){accountStatus.textContent=e.message}};
-   signupBtn.onclick=async()=>{try{const nm=authName.value.trim(),em=authEmail.value.trim(),pw=authPass.value;if(!nm){accountStatus.textContent='Enter your full name to create an account.';authName.focus();return}if(!em){accountStatus.textContent='Enter an email address.';authEmail.focus();return}if(pw.length<8){accountStatus.textContent='Password must be at least 8 characters.';authPass.focus();return}const d=await api('/api/auth/register',{method:'POST',body:JSON.stringify({name:nm,email:em,password:pw})});token=d.token;me=d.user;localStorage.setItem(KEY,token);await refresh()}catch(e){accountStatus.textContent=e.message}};
-   logoutBtn.onclick=async()=>{try{await api('/api/auth/logout',{method:'POST'})}catch(e){}token=null;localStorage.removeItem(KEY);await refresh()};
-   adminBtn.onclick=showAdmin;
- }
-
- async function refresh(){addPanel(); if(!token){accountStatus.textContent='Not signed in. Create an account to submit registrations.';authFields.style.display='block';logoutBtn.style.display='none';adminLink.style.display='none';return}try{const d=await api('/api/me');me=d.user;accountStatus.textContent='SIGNED IN: '+me.name+' • '+me.email;authFields.style.display='none';logoutBtn.style.display='block';adminLink.style.display=me.role==='admin'?'block':'none';}catch(e){token=null;localStorage.removeItem(KEY);refresh()}}
- const oldNext=document.getElementById('next');
- if(oldNext)oldNext.onclick=async()=>{
-   if(!token){msg.innerHTML='<div class="notice">Please create an FAA account or sign in above before registering.</div>';document.getElementById('home').scrollIntoView();return}
-   const divisions=[right.value,left.value].filter(Boolean); if(!name.value.trim()||!email.value.trim()||!divisions.length){msg.innerHTML='<div class="notice">Enter your name, email and at least one division.</div>';return}
-   try{const events=await api('/api/events');const e=events.events[0];let created=[];for(const division of divisions){const d=await api('/api/registrations',{method:'POST',body:JSON.stringify({eventId:e.id,division})});created.push(d.registration)}
-     S.pending={name:name.value,email:email.value,phone:phone.value,city:city.value,right:right.value,left:left.value,total:created.reduce((a,r)=>a+r.amount,0),registrations:created};localStorage.setItem('FAA_V11_PENDING',JSON.stringify(S.pending));due.textContent='PAYMENT AT FINAL STAGE';go('payment');
-   }catch(e){msg.innerHTML='<div class="notice">'+e.message+'</div>'}
- };
- // Disable the old demo payment action for now.
- const payBtn=document.getElementById('pay'); if(payBtn){payBtn.textContent='PAYMENT COMING LAST →';payBtn.onclick=()=>{confirmationText.textContent='Registration saved on the FAA server. Payment will be connected at the final stage.';go('confirmation')}}
- async function showAdmin(){
-   let a=document.getElementById('faaAdmin');if(!a){a=document.createElement('main');a.id='faaAdmin';a.className='screen';document.querySelector('.bottom').before(a)}
-   try{const d=await api('/api/admin/dashboard');a.innerHTML=`<h1>FAA ADMIN</h1><div class="card form"><h2>OVERVIEW</h2><div class="grid"><div class="notice"><b>${d.events.length}</b><br>EVENTS</div><div class="notice"><b>${d.registrations.length}</b><br>REGISTRATIONS</div><div class="notice"><b>${d.users.length}</b><br>USERS</div><div class="notice"><b>${d.results.length}</b><br>RESULTS</div></div></div><div class="card form"><h2>CREATE EVENT</h2><label>EVENT NAME</label><input id="aeName" placeholder="FAA Championship"><label>DATE</label><input id="aeDate" type="date"><label>LOCATION</label><input id="aeLoc" placeholder="Jacksonville, FL"><label>ENTRY FEE</label><input id="aeFee" type="number" value="50"><button class="cta" id="aeCreate">CREATE EVENT</button></div><div class="card form"><h2>REGISTRATIONS</h2><div id="adminRegs">${d.registrations.length?d.registrations.map(r=>`<div class="list"><div class="grow"><b>${r.division}</b><div class="small">${r.id} • ${r.status} • $${r.amount}</div></div><button class="cta outline" data-rid="${r.id}" data-status="checked_in">CHECK IN</button></div>`).join(''):'<div class="notice">No registrations yet.</div>'}</div></div><button class="cta outline" data-go="home">← BACK</button>`;
-     aeCreate.onclick=async()=>{try{await api('/api/admin/events',{method:'POST',body:JSON.stringify({name:aeName.value,date:aeDate.value,location:aeLoc.value,entryFee:Number(aeFee.value)})});showAdmin()}catch(e){alert(e.message)}};
-     a.querySelectorAll('[data-rid]').forEach(b=>b.onclick=async()=>{try{await api('/api/admin/registrations/'+b.dataset.rid,{method:'PATCH',body:JSON.stringify({status:b.dataset.status})});showAdmin()}catch(e){alert(e.message)}});
-     go('faaAdmin');
-   }catch(e){alert(e.message)}
- }
- addPanel(); refresh();
+  window.FAA_PUBLIC_ONLY=true;
 })();
 </script><script>
 // V14 official 2026 event catalog. Payment remains intentionally deferred.
@@ -166,8 +133,8 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
  function renderHome(){const e=events[0];if(!e)return;document.getElementById('nextEventHero').innerHTML=`<img src="${flyer(e)}" class="full-art"><div class="body"><div class="red">NEXT EVENT</div><h1>${esc(e.name)}</h1><div class="small"><b>${fmtDate(e.date)}</b><br>${esc(e.location)}<br>$${Number(e.entryFee).toFixed(0)} ${esc(e.entryUnit||'entry')}</div><button class="cta" data-home-event="${esc(e.id)}">VIEW EVENT →</button></div>`;document.querySelectorAll('[data-home-event]').forEach(b=>b.onclick=()=>{selectEvent(b.dataset.homeEvent);go('event')});}
  async function loadEvents(){try{const d=await api14('/api/events');events=(d.events||[]).filter(e=>e.date>='2026-09-09').sort((a,b)=>a.date.localeCompare(b.date));renderHome();renderCatalog();renderSchedule();renderEventSelect();if(selectedId)renderEventDetail(eventById(selectedId));}catch(e){const n=document.getElementById('nextEventHero');if(n)n.innerHTML='<div class="body"><div class="notice">Unable to load the FAA schedule. Please refresh.</div></div>';}}
  eventSelect.addEventListener('change',()=>{selectedId=eventSelect.value;localStorage.setItem(EVENT_KEY,selectedId);populateClasses()});
- // Replace the old registration handler with event-aware registration.
- const next=document.getElementById('next'); if(next)next.onclick=async()=>{const n=name.value.trim(),em=email.value.trim(),eid=eventSelect.value,r=right.value,l=left.value;if(!n||!em||!eid||(!r&&!l)){msg.innerHTML='<div class="notice">Enter your name, email, event and at least one class.</div>';return}let token=localStorage.getItem('FAA_TOKEN');if(!token){msg.innerHTML='<div class="notice">Please create an FAA account or sign in above before registering.</div>';document.getElementById('home').scrollIntoView();return}try{const made=[];for(const division of [r,l].filter(Boolean)){const d=await api14('/api/registrations',{method:'POST',body:JSON.stringify({eventId:eid,division})});made.push(d.registration)}S.pending={name:n,email:em,phone:phone.value,city:city.value,eventId:eid,right:r,left:l,total:made.reduce((a,x)=>a+Number(x.amount||0),0),registrations:made};localStorage.setItem('FAA_V11_PENDING',JSON.stringify(S.pending));due.textContent='PAYMENT AT FINAL STAGE';go('payment')}catch(e){msg.innerHTML='<div class="notice">'+esc(e.message)+'</div>'}};
+ // Direct public registration: no member account required.
+ const next=document.getElementById('next'); if(next)next.onclick=async()=>{const n=name.value.trim(),em=email.value.trim(),ph=phone.value.trim(),ct=city.value.trim(),eid=eventSelect.value,cat=document.getElementById('category')?.value||'',w=document.getElementById('weight')?.value||'',a=document.getElementById('arm')?.value||'right';if(!n||!em||!ph||!eid||!cat){msg.innerHTML='<div class="notice">Please complete all required fields.</div>';return}if((cat==='Amateur'||cat==='Pro')&&!w){msg.innerHTML='<div class="notice">Amateur and Pro require a weight class.</div>';return}const division=cat+' — '+((cat==='Amateur'||cat==='Pro')?w:'Open Class');const payload={name:n,email:em,phone:ph,city:ct,eventId:eid,category:cat,right:(a==='right'||a==='both')?division:'',left:(a==='left'||a==='both')?division:''};try{msg.innerHTML='<div class="notice">Submitting registration...</div>';const r=await fetch('/api/public-registrations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();if(!r.ok)throw Error(d.error||'Registration failed');const e=eventById(eid);msg.innerHTML='<div class="notice"><strong>Registration complete.</strong><br><br>'+esc(n)+' is registered for <strong>'+esc(e?.name||'the selected FAA event')+'</strong>.<br>Category: <strong>'+esc(cat)+'</strong><br>Arm: <strong>'+esc(a==='both'?'Right and Left Arms':a==='left'?'Left Arm':'Right Arm')+'</strong>'+(cat==='Amateur'||cat==='Pro'?'<br>Weight Class: <strong>'+esc(w)+'</strong>':'')+'<br><br>Your registration has been saved. Payment will be connected at the final launch stage.</div>';next.textContent='REGISTRATION SAVED ✓';next.disabled=true}catch(e){msg.innerHTML='<div class="notice">'+esc(e.message)+'</div>'}};
  loadEvents();
 })();
 </script><script id="faa-launch-polish-js">// FAA launch polish: current 2026 schedule, flyer cards, clean empty states, and safer registration flow.
@@ -207,14 +174,17 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
   function cleanHome(){if($('home')){const n=$('home').querySelector('.small');if(n&&n.textContent.includes('Florida Armwrestling Kicks Off'))n.textContent='Official 2026 FAA events, registration, results and event photos.'}}
   function setupRegistration(){
     const next=$('next');if(!next)return;
-    next.onclick=async()=>{const token=localStorage.getItem('FAA_TOKEN');if(!token){if($('msg'))$('msg').innerHTML='<div class="notice">Please sign in or create an FAA account before registering.</div>';return}
-      const name=$('name')?.value.trim(),email=$('email')?.value.trim(),eventId=$('eventSelect')?.value,right=$('right')?.value,left=$('left')?.value;
-      if(!name||!email||!eventId||(!right&&!left)){if($('msg'))$('msg').innerHTML='<div class="notice">Enter your name, email, event and at least one class.</div>';return}
-      try{const divs=[right,left].filter(Boolean),created=[];for(const division of divs){const d=await api('/api/registrations',{method:'POST',body:JSON.stringify({eventId,division})});created.push(d.registration)}
-        localStorage.setItem('FAA_V15_PENDING',JSON.stringify({name,email,phone:$('phone')?.value||'',city:$('city')?.value||'',eventId,divisions:divs,registrations:created,total:created.reduce((a,x)=>a+Number(x.amount||0),0)}));if($('due'))$('due').textContent='PAYMENT AT FINAL STAGE';go('payment')
-      }catch(e){if($('msg'))$('msg').innerHTML='<div class="notice">'+esc(e.message)+'</div>'}
-    };
-    const pay=$('pay');if(pay){pay.textContent='SAVE REGISTRATION →';pay.onclick=()=>{const p=JSON.parse(localStorage.getItem('FAA_V15_PENDING')||'null');const e=p&&eventById(p.eventId);if($('confirmationText'))$('confirmationText').textContent=`Registration saved for ${e?e.name:'the selected FAA event'}. Payment will be connected at the final launch stage.`;go('confirmation')}}
+    const cat=$('category'),wrap=$('weightWrap'),weight=$('weight');
+    if(cat)cat.onchange=()=>{if(wrap)wrap.style.display=(cat.value==='Amateur'||cat.value==='Pro')?'block':'none';if(weight&&cat.value!=='Amateur'&&cat.value!=='Pro')weight.value=''};
+    if(wrap&&cat)wrap.style.display=(cat.value==='Amateur'||cat.value==='Pro')?'block':'none';
+    next.onclick=async()=>{
+      const n=$('name')?.value.trim(),em=$('email')?.value.trim(),ph=$('phone')?.value.trim(),ct=$('city')?.value.trim(),eid=$('eventSelect')?.value,category=$('category')?.value,wt=$('weight')?.value,arm=$('arm')?.value||'right';
+      if(!n||!em||!ph||!eid||!category){if($('msg'))$('msg').innerHTML='<div class="notice">Please complete all required fields.</div>';return}
+      if((category==='Amateur'||category==='Pro')&&!wt){if($('msg'))$('msg').innerHTML='<div class="notice">Amateur and Pro require a weight class.</div>';return}
+      const division=category+' — '+((category==='Amateur'||category==='Pro')?wt:'Open Class');
+      const payload={name:n,email:em,phone:ph,city:ct,eventId:eid,category,right:(arm==='right'||arm==='both')?division:'',left:(arm==='left'||arm==='both')?division:''};
+      try{if($('msg'))$('msg').innerHTML='<div class="notice">Submitting registration...</div>';const r=await fetch('/api/public-registrations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();if(!r.ok)throw Error(d.error||'Registration failed');const e=eventById(eid);if($('msg'))$('msg').innerHTML='<div class="notice"><strong>REGISTRATION COMPLETE</strong><br><br>'+esc(n)+' is registered for:<br><strong>'+esc(e?e.name:'the selected FAA event')+'</strong><br><br>Category: <strong>'+esc(category)+'</strong><br>Arm: <strong>'+esc(arm==='both'?'Right and Left Arms':arm==='left'?'Left Arm':'Right Arm')+'</strong>'+(category==='Amateur'||category==='Pro'?'<br>Weight Class: <strong>'+esc(wt)+'</strong>':'')+'<br><br>Your registration has been saved. Payment will be connected at the final launch stage.</div>';next.textContent='REGISTRATION SAVED ✓';next.disabled=true}catch(e){if($('msg'))$('msg').innerHTML='<div class="notice">'+esc(e.message)+'</div>'}};
+    const pay=$('pay');if(pay){pay.textContent='PAYMENT COMING LAST →';pay.onclick=()=>{if($('confirmationText'))$('confirmationText').textContent='Your FAA registration has been saved. Payment will be connected at the final launch stage.';go('confirmation')}}
   }
   window.go=function(id){
     if(id==='more')id='my';

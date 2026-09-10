@@ -1,32 +1,29 @@
-FLORIDA ARMWRESTLING — LAUNCH BUILD
+FLORIDA ARMWRESTLING — V23 FULL DEPLOYMENT PACKAGE
 
-This package is the launch-ready website build for Armwarrior.com.
+Public site: Armwarrior.com
 
-2026 official events included:
-- Oct 17 — Garage Grinder Classic 2 — Eclipse Tattoo, Davenport — $40 per hand
-- Nov 14 — Lucky U Cycles Motorcycle Pull — Fort Myers — $40 per class
-- Dec 5 — Florida State Championship — Mudville Grill, Jacksonville — $40 per hand
+V23 changes:
+- Public event registration does NOT require a member account.
+- No public member sign-in or member account creation is required.
+- Registration collects name, email, phone, city, event, category, arm, and weight when applicable.
+- Amateur and Pro require a weight class.
+- Kids, Ladies, and Masters do not require a weight class.
+- Payment remains deferred for the final launch stage.
+- Admin dashboard remains protected.
 
-Included:
-- Public event schedule and event detail pages
-- Official event flyers
-- Athlete account registration and server-side registrations
-- Clean public results/competitor empty states until real data is published
-- Expanded FAA admin control center
-- Event editing and registration status controls
-- Results entry
-- PWA/offline shell
+Files included:
+- index.html
+- admin.html
+- server.js
+- package.json
+- manifest.webmanifest
+- service-worker.js
+- flyer-garage-grinder.jpg
+- flyer-lucky-u.jpg
+- flyer-state-championship.jpg
 
-Payments are intentionally deferred until the final launch stage, as requested.
+Render start command:
+npm start
 
-Hosting:
-- Node.js 18+
-- Start command: node server.js
-- Render can use npm install as the build command
-- The server listens on the Render PORT and 0.0.0.0
-
-
-V16 update: added a prominent FAA member account area with full-name account creation and sign-in. Auth token storage is unified for registration/admin access.
-
-
-V19 cache fix: service-worker cache was bumped so updated account code replaces stale mobile-browser cached code.
+Admin:
+Set ADMIN_EMAIL to the authorized admin email in Render environment variables.

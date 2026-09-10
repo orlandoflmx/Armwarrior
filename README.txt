@@ -45,3 +45,5 @@ V33 ADMIN LOGIN FIX
 Default admin password: FAAadmin2026!
 The password can be overridden in Render with ADMIN_PASSWORD.
 ADMIN_EMAIL remains the admin email.
+
+V40: restored the global data-go navigation click handler. No registration/auth logic changed.

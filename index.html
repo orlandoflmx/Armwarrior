@@ -1,6 +1,6 @@
 <!doctype html>
 <html><head>
-<meta name="faa-build" content="v39-payment-fields-ready""><meta charset="utf-8">
+<meta name="faa-build" content="v38-registration-dialed-in""><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#050505">
 <title>FLORIDA ARMWRESTLING</title>
@@ -59,7 +59,6 @@ label{display:block;color:#aaa;font-size:9px;font-weight:900;margin-top:10px}
 .notice{padding:11px;border-radius:8px;border:1px solid #633038;background:#17080a;color:#ddd;font-size:10px;line-height:1.5}
 .switch{display:flex;border:1px solid #444;border-radius:18px;overflow:hidden;margin-bottom:10px}.switch button{flex:1;border:0;background:#111;color:#aaa;padding:9px;font-size:9px;font-weight:900}.switch button.on{background:#ef1019;color:#fff}
 .full-art{width:100%;border:1px solid #444;border-radius:10px;display:block}
-.payment-shell{margin-top:12px;padding:12px;border:1px solid #39424a;border-radius:10px;background:#090b0d}.payment-label{font-weight:800;font-size:13px;margin-bottom:8px}.payment-placeholder{display:flex;gap:10px;align-items:flex-start;padding:11px;border:1px dashed #59636d;border-radius:8px;margin-bottom:10px}.payment-icon{font-size:22px}.payment-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}.payment-row input:disabled{opacity:.55;cursor:not-allowed}@media(max-width:560px){.payment-row{grid-template-columns:1fr}.payment-row>div{min-width:0}}
 </style><link rel="manifest" href="./manifest.webmanifest"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><style id="faa-launch-polish">
 .launch-event{background:#090909;border:1px solid #3f3f3f;border-radius:12px;overflow:hidden;margin:12px 0;box-shadow:0 6px 18px #000}.launch-event>img{display:block;width:100%;height:auto;max-height:380px;object-fit:cover}.launch-event-body{padding:14px}.launch-date{color:#ff252c;font-weight:900;font-size:11px;text-transform:uppercase}.launch-event h2{margin:5px 0 8px;font-size:18px}.launch-meta{color:#ccc;font-size:11px;line-height:1.7}.launch-pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}.launch-pills span{font-size:9px;font-weight:900;border:1px solid #555;border-radius:999px;padding:5px 7px;background:#111}.launch-pills.big span{font-size:10px}.launch-flyer{width:100%;display:block;border-radius:10px;border:1px solid #444}.launch-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0}.launch-stats>div{background:#090909;border:1px solid #3a3a3a;border-radius:8px;padding:9px;text-align:center}.launch-stats b{display:block;font-size:14px}.launch-stats span{display:block;color:#999;font-size:8px;margin-top:3px}.launch-detail h3{font-size:11px;color:#ff252c;margin:15px 0 5px}.launch-prizes{padding-left:20px;color:#ddd;font-size:11px;line-height:1.8}.launch-schedule{display:grid;gap:8px}.schedule-row{width:100%;display:flex;align-items:center;gap:10px;background:#0b0b0b;color:#fff;border:1px solid #3d3d3d;border-radius:10px;padding:11px;text-align:left}.schedule-num{font-weight:900;color:#ff2028;font-size:16px;width:28px}.schedule-row strong,.schedule-row span{display:block}.schedule-row strong{font-size:12px;margin:2px 0}.schedule-row span{font-size:9px;color:#aaa}.schedule-arrow{font-size:18px;color:#ff2028}.launch-photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px}.launch-photo-grid button{padding:0;background:#090909;color:#fff;border:1px solid #444;border-radius:9px;overflow:hidden;text-align:left}.launch-photo-grid img{display:block;width:100%;height:auto}.launch-photo-grid span{display:block;padding:8px;font-size:9px;font-weight:900}.hero>img{height:auto!important;max-height:430px!important;object-fit:cover}.screen h1{letter-spacing:.4px}@media(min-width:700px){.launch-event{display:grid;grid-template-columns:44% 56%}.launch-event>img{height:100%;max-height:none}.launch-event-body{padding:22px}.launch-detail{max-width:760px;margin:auto}}
 </style>
@@ -89,19 +88,7 @@ label{display:block;color:#aaa;font-size:9px;font-weight:900;margin-top:10px}
 <label>CATEGORY *</label><select id="category"><option value="">Select category</option></select>
 <div id="weightWrap"><label>WEIGHT CLASS *</label><select id="weight"><option value="">Select weight class</option></select></div>
 <label>ARM *</label><select id="arm"><option value="right">Right Arm</option><option value="left">Left Arm</option><option value="both">Both Arms</option></select>
-<h3 style="margin:18px 0 4px">PAYMENT INFORMATION</h3>
-<div class="small muted" style="margin-bottom:10px">These fields are ready for secure payment processing. Card details will be handled by the payment processor and will not be stored by the FAA website.</div>
-<label>CARDHOLDER NAME</label><input id="billingName" autocomplete="cc-name" maxlength="100" placeholder="Name on card">
-<label>BILLING ZIP CODE</label><input id="billingZip" autocomplete="postal-code" inputmode="numeric" maxlength="10" placeholder="32207">
-<div class="payment-shell">
-  <div class="payment-label">CARD DETAILS</div>
-  <div class="payment-placeholder">
-    <div class="payment-icon">▣</div>
-    <div><strong>Secure card payment</strong><br><span class="small">Card number, expiration date and security code will appear here when the payment processor is connected.</span></div>
-  </div>
-  <div class="payment-row"><div><label>CARD NUMBER</label><input disabled placeholder="•••• •••• •••• ••••"></div><div><label>EXPIRATION</label><input disabled placeholder="MM / YY"></div><div><label>SECURITY CODE</label><input disabled placeholder="CVC"></div></div>
-</div>
-<div class="notice" style="margin-top:12px"><strong>PAYMENT SETUP READY</strong><br><br>Your registration will be saved as <strong>Pending Payment</strong> until the secure payment processor is connected. No card information is stored or charged by this form yet.</div>
+<div class="notice" style="margin-top:12px">Registration is saved as <strong>Pending Payment</strong>. Online payment is not connected yet, so you will not be charged from this form.</div>
 <div id="msg"></div><div id="review" class="card" style="display:none;margin-top:12px"></div>
 <div class="actions"><button class="cta" id="next">REVIEW REGISTRATION →</button></div></div></main>
 
@@ -284,7 +271,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
     }
     eventSelect?.addEventListener('change',()=>{window.__faaEvent=selectedEvent();syncCategory();if(review)review.style.display='none';});
     cat?.addEventListener('change',()=>{syncWeight();if(review)review.style.display='none';});
-    [weight,arm,$('name'),$('email'),$('phone'),$('city'),$('billingName'),$('billingZip')].forEach(el=>el?.addEventListener('input',()=>{if(review)review.style.display='none';}));
+    [weight,arm,$('name'),$('email'),$('phone'),$('city')].forEach(el=>el?.addEventListener('input',()=>{if(review)review.style.display='none';}));
     syncCategory();
     next.onclick=async()=>{
       const n=$('name')?.value.trim(),em=$('email')?.value.trim().toLowerCase(),ph=$('phone')?.value.trim(),ct=$('city')?.value.trim(),eid=eventSelect?.value,category=cat?.value,wt=weight?.value,armValue=arm?.value||'right',e=selectedEvent();
@@ -336,4 +323,15 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
   setTimeout(()=>{refreshPublic();setupRegistration();cleanResults();cleanChampions();cleanHome()},100);
   window.FAA_LAUNCH_EVENTS=EVENTS;
 })();
-</script></body></html>
+</script>
+<script id="faa-navigation-fix-v40">
+// V40: restore the global navigation click handler. This uses event delegation so
+// buttons rendered later (event details, confirmation, etc.) work too.
+document.addEventListener('click', function(e){
+  const b=e.target.closest('[data-go]');
+  if(!b) return;
+  e.preventDefault();
+  if(typeof window.go==='function') window.go(b.dataset.go);
+});
+</script>
+</body></html>

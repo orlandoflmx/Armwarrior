@@ -4,6 +4,7 @@ fs.mkdirSync(DATA,{recursive:true});
 
 const COMMON={
  weightClasses:['154 lbs','176 lbs','198 lbs','220 lbs','242 lbs','243+ lbs'],
+ championClasses:['154 lbs','176 lbs','198 lbs','220 lbs','242 lbs','243+ lbs','Ladies','Masters'],
  categories:['Kids','Ladies','Amateur','Pro','Masters']
 };
 const SEEDED_EVENTS=[
@@ -100,7 +101,7 @@ async function api(q,r,p){
   if(q.method==='POST'&&p==='/api/admin/champions'){
    if(!admin(q,d))return send(r,403,{error:'Admin access required'});
    const b=await body(q),weight=String(b.weight||''),side=String(b.side||'').toLowerCase(),name=String(b.name||'').trim(),photo=String(b.photo||'');
-   if(!COMMON.weightClasses.includes(weight)||!['right','left'].includes(side))return send(r,400,{error:'Valid weight class and hand are required'});
+   if(!COMMON.championClasses.includes(weight)||!['right','left'].includes(side))return send(r,400,{error:'Valid champion class and hand are required'});
    if(!name)return send(r,400,{error:'Champion name is required'});
    if(photo && (!/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(photo)||photo.length>1200000))return send(r,400,{error:'Please upload a JPG, PNG or WebP image under 1 MB.'});
    let c=d.champions.find(x=>x.weight===weight&&x.side===side);if(!c){c={id:id('champ'),weight,side};d.champions.push(c)}

@@ -79,7 +79,7 @@ label{display:block;color:#aaa;font-size:9px;font-weight:900;margin-top:10px}
 
 <main id="event" class="screen"><div id="eventDetails"><div class="notice">Select an event to view details.</div></div></main>
 
-<main id="register" class="screen"><h1>REGISTER</h1><div class="card form"><h2>EVENT REGISTRATION</h2><div class="small">Complete your information, choose your event and division, then review everything before submitting.</div>
+<main id="register" class="screen"><h1>REGISTER</h1><div class="card form"><h2>EVENT REGISTRATION</h2><div class="small">Complete your information, choose your event and division, then submit your registration.</div>
 <label>FULL NAME *</label><input id="name" autocomplete="name" maxlength="80" placeholder="John Smith">
 <label>EMAIL ADDRESS *</label><input id="email" type="email" autocomplete="email" maxlength="120" placeholder="john@example.com">
 <label>PHONE *</label><input id="phone" type="tel" autocomplete="tel" maxlength="30" placeholder="(904) 555-1234">
@@ -89,8 +89,8 @@ label{display:block;color:#aaa;font-size:9px;font-weight:900;margin-top:10px}
 <div id="weightWrap"><label>WEIGHT CLASS *</label><select id="weight"><option value="">Select weight class</option></select></div>
 <label>ARM *</label><select id="arm"><option value="right">Right Arm</option><option value="left">Left Arm</option><option value="both">Both Arms</option></select>
 <div class="notice" style="margin-top:12px">Registration is saved as <strong>Pending Payment</strong>. Online payment is not connected yet, so you will not be charged from this form.</div>
-<div id="msg"></div><div id="review" class="card" style="display:none;margin-top:12px"></div>
-<div class="actions"><button class="cta" id="next">REVIEW REGISTRATION →</button></div></div></main>
+<div id="msg"></div><div id="registrationSummary" class="card" style="display:none;margin-top:12px"></div>
+<div class="actions"><button class="cta outline" id="editRegistration">← EDIT</button><button class="cta" id="next">SUBMIT REGISTRATION →</button></div></div></main>
 
 <main id="payment" class="screen"><h1>PAYMENT</h1><div class="card form"><div class="notice"><strong>PAYMENT NOT YET CONNECTED</strong><br><br>Your registration has been saved. Online payment will be added after the payment processor is connected.</div><button class="cta" data-go="my">VIEW MY REGISTRATION →</button><button class="cta outline" data-go="home">BACK TO HOME</button></div></main>
 <main id="confirmation" class="screen"><div class="card form" style="text-align:center;margin-top:30px"><div style="font-size:62px;color:#35e36b">✓</div><h1>REGISTRATION SAVED!</h1><div id="confirmationText" class="small"></div><button class="cta" data-go="my">VIEW REGISTRATION →</button><button class="cta outline" data-go="home">BACK TO HOME</button></div></main>
@@ -252,7 +252,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
   }
   function setupRegistration(){
     const next=$('next');if(!next)return;
-    const eventSelect=$('eventSelect'),cat=$('category'),wrap=$('weightWrap'),weight=$('weight'),arm=$('arm'),review=$('review');
+    const edit=$('editRegistration'),eventSelect=$('eventSelect'),cat=$('category'),wrap=$('weightWrap'),weight=$('weight'),arm=$('arm'),summary=$('registrationSummary');
     const showMsg=(text)=>{if($('msg'))$('msg').innerHTML='<div class="notice">'+esc(text)+'</div>'};
     const selectedEvent=()=>eventById(eventSelect?.value);
     function syncCategory(){
@@ -260,7 +260,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
       if(!cat)return;
       const cats=Array.isArray(e?.categories)&&e.categories.length?e.categories:CATS;
       cat.innerHTML='<option value="">Select category</option>'+cats.map(x=>`<option>${esc(x)}</option>`).join('');
-      syncWeight();
+      syncWeight();updateSummary();
     }
     function syncWeight(){
       const e=selectedEvent(),isWeighted=cat&&['Amateur','Pro'].includes(cat.value);
@@ -269,38 +269,45 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
       const classes=Array.isArray(e?.weightClasses)&&e.weightClasses.length?e.weightClasses:WEIGHTS;
       weight.innerHTML='<option value="">Select weight class</option>'+classes.map(x=>`<option>${esc(x)}</option>`).join('');
       if(!isWeighted)weight.value='';
+      updateSummary();
     }
-    eventSelect?.addEventListener('change',()=>{window.__faaEvent=selectedEvent();syncCategory();if(review)review.style.display='none';});
-    cat?.addEventListener('change',()=>{syncWeight();if(review)review.style.display='none';});
-    [weight,arm,$('name'),$('email'),$('phone'),$('city')].forEach(el=>el?.addEventListener('input',()=>{if(review)review.style.display='none';}));
-    syncCategory();
-    next.onclick=async()=>{
+    function currentData(){
       const n=$('name')?.value.trim(),em=$('email')?.value.trim().toLowerCase(),ph=$('phone')?.value.trim(),ct=$('city')?.value.trim(),eid=eventSelect?.value,category=cat?.value,wt=weight?.value,armValue=arm?.value||'right',e=selectedEvent();
-      if(!n||!em||!ph||!eid||!category){showMsg('Please complete all required fields.');return}
-      if(n.length<2){showMsg('Please enter your full name.');return}
-      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){showMsg('Please enter a valid email address.');return}
-      if(ph.replace(/\D/g,'').length<7){showMsg('Please enter a valid phone number.');return}
-      if(!e||e.status!=='open'){showMsg('This event is not currently open for registration.');return}
-      if(['Amateur','Pro'].includes(category)&&!wt){showMsg('Please select a weight class.');return}
       const division=category+' — '+(['Amateur','Pro'].includes(category)?wt:'Open Class');
       const arms=armValue==='both'?['Right Arm','Left Arm']:[armValue==='left'?'Left Arm':'Right Arm'];
-      const total=(String(e.entryUnit||'').toLowerCase().includes('hand')?Number(e.entryFee||0)*arms.length:Number(e.entryFee||0));
-      review.innerHTML='<h3 style="margin-top:0">REVIEW YOUR REGISTRATION</h3><div class="small"><b>Athlete</b><br>'+esc(n)+'<br>'+esc(em)+'<br>'+esc(ph)+(ct?'<br>'+esc(ct):'')+'<br><br><b>Event</b><br>'+esc(e.name)+'<br>'+esc(fmtDate(e.date))+'<br>'+esc(e.location)+'<br><br><b>Division</b><br>'+esc(division)+'<br><b>Arm</b><br>'+esc(arms.join(' + '))+'<br><br><b>Registration Fee</b><br>$'+total.toFixed(2)+' '+esc(e.entryUnit||'')+'<br><br><span class="muted">Your registration will be saved as Pending Payment. No card will be charged.</span></div><div class="actions"><button class="cta" id="confirmRegistration">CONFIRM & SUBMIT →</button><button class="cta outline" id="editRegistration">← EDIT</button></div>';
-      review.style.display='block';
-      $('confirmRegistration').onclick=async()=>{
-        const confirmBtn=$('confirmRegistration');confirmBtn.disabled=true;confirmBtn.textContent='SUBMITTING…';
-        try{
-          const payload={name:n,email:em,phone:ph,city:ct,eventId:eid,category,right:(armValue==='right'||armValue==='both')?(['Amateur','Pro'].includes(category)?wt:category):'',left:(armValue==='left'||armValue==='both')?(['Amateur','Pro'].includes(category)?wt:category):''};
-          const r=await fetch('/api/public-registrations',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();
-          if(!r.ok)throw Error(d.error||'Registration failed');
-          const ids=(d.registrations||[]).map(x=>x.id).join(', ');
-          savePublicReceipt((d.registrations||[]).map(x=>({id:x.id,status:x.status,name:n,email:em,eventName:e.name,date:e.date,division:division,arm:x.arm==='right'?'Right Arm':'Left Arm'})));
-          if($('confirmationText'))$('confirmationText').innerHTML='<strong>'+esc(n)+'</strong><br><br>'+esc(e.name)+'<br>'+esc(fmtDate(e.date))+'<br>'+esc(division)+'<br>'+esc(arms.join(' + '))+'<br><br>Status: <strong>PENDING PAYMENT</strong><br><br>Registration ID: '+esc(ids||'Saved')+'<br><br>Your registration is saved. Online payment will be connected at the final launch stage.';
-          review.style.display='none';next.textContent='REGISTRATION SAVED ✓';next.disabled=true;renderMyRegistrations();go('confirmation');
-        }catch(err){confirmBtn.disabled=false;confirmBtn.textContent='CONFIRM & SUBMIT →';showMsg(err&&err.message==='Failed to fetch'?'Unable to reach the registration server. Please try again.':(err?.message||'Registration failed.'))}
-      };
-      $('editRegistration').onclick=()=>{review.style.display='none';window.scrollTo(0,0)};
-      review.scrollIntoView({behavior:'smooth',block:'start'});
+      const total=(String(e?.entryUnit||'').toLowerCase().includes('hand')?Number(e?.entryFee||0)*arms.length:Number(e?.entryFee||0));
+      return {n,em,ph,ct,eid,category,wt,armValue,e,division,arms,total};
+    }
+    function updateSummary(){
+      if(!summary)return;
+      const x=currentData();
+      if(!x.n&&!x.em&&!x.ph&&!x.eid&&!x.category){summary.style.display='none';summary.innerHTML='';return}
+      summary.innerHTML='<h3 style="margin-top:0">REGISTRATION DETAILS</h3><div class="small"><b>Athlete</b><br>'+esc(x.n||'—')+'<br>'+esc(x.em||'—')+'<br>'+esc(x.ph||'—')+(x.ct?'<br>'+esc(x.ct):'')+'<br><br><b>Event</b><br>'+esc(x.e?.name||'—')+(x.e?.date?'<br>'+esc(fmtDate(x.e.date)):'')+(x.e?.location?'<br>'+esc(x.e.location):'')+'<br><br><b>Division</b><br>'+esc(x.division===' — Open Class'?'Open Class':x.division||'—')+'<br><b>Arm</b><br>'+esc(x.arms.join(' + '))+'<br><br><b>Registration Fee</b><br>$'+x.total.toFixed(2)+' '+esc(x.e?.entryUnit||'')+'<br><br><span class="muted">Your registration will be saved as Pending Payment.</span></div>';
+      summary.style.display='block';
+    }
+    eventSelect?.addEventListener('change',()=>{window.__faaEvent=selectedEvent();syncCategory();});
+    cat?.addEventListener('change',()=>{syncWeight();});
+    [weight,arm,$('name'),$('email'),$('phone'),$('city')].forEach(el=>el?.addEventListener('input',updateSummary));
+    syncCategory();updateSummary();
+    edit?.addEventListener('click',()=>{$('name')?.focus();window.scrollTo({top:0,behavior:'smooth'});});
+    next.onclick=async()=>{
+      const x=currentData();
+      if(!x.n||!x.em||!x.ph||!x.eid||!x.category){showMsg('Please complete all required fields.');return}
+      if(x.n.length<2){showMsg('Please enter your full name.');return}
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x.em)){showMsg('Please enter a valid email address.');return}
+      if(x.ph.replace(/\D/g,'').length<7){showMsg('Please enter a valid phone number.');return}
+      if(!x.e||x.e.status!=='open'){showMsg('This event is not currently open for registration.');return}
+      if(['Amateur','Pro'].includes(x.category)&&!x.wt){showMsg('Please select a weight class.');return}
+      next.disabled=true;next.textContent='SUBMITTING…';showMsg('');
+      try{
+        const payload={name:x.n,email:x.em,phone:x.ph,city:x.ct,eventId:x.eid,category:x.category,right:(x.armValue==='right'||x.armValue==='both')?(['Amateur','Pro'].includes(x.category)?x.wt:x.category):'',left:(x.armValue==='left'||x.armValue==='both')?(['Amateur','Pro'].includes(x.category)?x.wt:x.category):''};
+        const r=await fetch('/api/public-registrations',{method:'POST',cache:'no-store',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();
+        if(!r.ok)throw Error(d.error||'Registration failed');
+        const ids=(d.registrations||[]).map(x=>x.id).join(', ');
+        savePublicReceipt((d.registrations||[]).map(r=>({id:r.id,status:r.status,name:x.n,email:x.em,eventName:x.e.name,date:x.e.date,division:x.division,arm:r.arm==='right'?'Right Arm':'Left Arm'})));
+        if($('confirmationText'))$('confirmationText').innerHTML='<strong>'+esc(x.n)+'</strong><br><br>'+esc(x.e.name)+'<br>'+esc(fmtDate(x.e.date))+'<br>'+esc(x.division)+'<br>'+esc(x.arms.join(' + '))+'<br><br>Status: <strong>PENDING PAYMENT</strong><br><br>Registration ID: '+esc(ids||'Saved')+'<br><br>Your registration is saved. Online payment will be connected at the final launch stage.';
+        next.textContent='REGISTRATION SAVED ✓';renderMyRegistrations();go('confirmation');
+      }catch(err){next.disabled=false;next.textContent='SUBMIT REGISTRATION →';showMsg(err&&err.message==='Failed to fetch'?'Unable to reach the registration server. Please try again.':(err?.message||'Registration failed.'))}
     };
   }
   window.go=function(id){

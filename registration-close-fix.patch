@@ -1,0 +1,14 @@
+diff --git a/server.js b/server.js
+--- a/server.js
++++ b/server.js
+@@ -34,4 +34,10 @@
+   const old=d.events.find(e=>e.id===seed.id);
+   if(!old)d.events.push(seed);
+-  else Object.assign(old,seed);
++  else {
++   // Seed data should only fill fields that are genuinely missing.
++   // Do not overwrite admin edits such as status='closed' on every API request.
++   for(const [key,value] of Object.entries(seed)){
++    if(old[key]===undefined||old[key]===null)old[key]=value;
++   }
++  }
